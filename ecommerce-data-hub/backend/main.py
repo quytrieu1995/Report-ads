@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,9 +13,10 @@ from sqlalchemy.orm import Session
 import models
 from database import Base, engine, get_db
 from currency import get_usd_vnd_rate
+from date_filter import apply_date_filter, range_to_dict, resolve_date_range
 from ingest import delete_batch, ingest_file
 from migrate import init_db
-from reports.affiliate import get_affiliate_report, get_creator_videos
+from reports.affiliate import get_affiliate_report, get_affiliate_trend, get_creator_videos
 
 # Tạo bảng + tự migrate cột mới (DB cũ không cần xóa)
 init_db(engine, Base.metadata)
@@ -30,6 +32,12 @@ app.add_middleware(
 )
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+
+def _dates(preset: Optional[str] = None, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    """Parse tham số lọc thời gian từ query."""
+    d_from, d_to = resolve_date_range(preset, date_from, date_to)
+    return d_from, d_to, range_to_dict(d_from, d_to)
 
 
 @app.get("/")
@@ -109,45 +117,62 @@ def remove_batch(batch_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/summary")
-def get_summary(db: Session = Depends(get_db)):
-    """KPI tổng hợp đa sàn."""
-    # TikTok GMV & số đơn (distinct order_id)
-    tiktok_gmv = (
-        db.query(func.coalesce(func.sum(models.TiktokOrder.sku_subtotal_after_discount), 0))
-        .scalar()
-    ) or 0
-    tiktok_orders = (
-        db.query(func.count(distinct(models.TiktokOrder.order_id)))
-        .filter(models.TiktokOrder.order_id.isnot(None))
-        .scalar()
-    ) or 0
+def get_summary(
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """KPI tổng hợp đa sàn — có thể lọc theo thời gian."""
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
 
-    # ROI quảng cáo = Σ doanh thu / Σ chi phí
-    ad_revenue = db.query(func.coalesce(func.sum(models.TiktokAdCreative.gross_revenue), 0)).scalar() or 0
-    ad_cost = db.query(func.coalesce(func.sum(models.TiktokAdCreative.cost), 0)).scalar() or 0
-    ad_roi = round(ad_revenue / ad_cost, 2) if ad_cost > 0 else 0
+    order_q = db.query(func.coalesce(func.sum(models.TiktokOrder.sku_subtotal_after_discount), 0))
+    order_q = apply_date_filter(order_q, models.TiktokOrder.created_time, d_from, d_to)
+    tiktok_gmv = order_q.scalar() or 0
+
+    orders_q = db.query(func.count(distinct(models.TiktokOrder.order_id))).filter(
+        models.TiktokOrder.order_id.isnot(None)
+    )
+    orders_q = apply_date_filter(orders_q, models.TiktokOrder.created_time, d_from, d_to)
+    tiktok_orders = orders_q.scalar() or 0
+
+    ad_revenue_q = db.query(func.coalesce(func.sum(models.TiktokAdCreative.gross_revenue), 0))
+    ad_revenue_q = apply_date_filter(ad_revenue_q, models.TiktokAdCreative.posted_at, d_from, d_to)
+    ad_revenue = ad_revenue_q.scalar() or 0
+
+    ad_cost_q = db.query(func.coalesce(func.sum(models.TiktokAdCreative.cost), 0))
+    ad_cost_q = apply_date_filter(ad_cost_q, models.TiktokAdCreative.posted_at, d_from, d_to)
+    ad_cost = ad_cost_q.scalar() or 0
+    ad_roi = round(float(ad_revenue) / float(ad_cost), 2) if ad_cost and float(ad_cost) > 0 else 0
 
     affiliate_creators = db.query(func.count(models.TiktokAffiliateCreator.id)).scalar() or 0
-    affiliate_videos = db.query(func.count(models.TiktokAffiliateVideo.id)).scalar() or 0
+    affiliate_videos_q = db.query(func.count(models.TiktokAffiliateVideo.id))
+    affiliate_videos_q = apply_date_filter(affiliate_videos_q, models.TiktokAffiliateVideo.posted_date, d_from, d_to)
+    affiliate_videos = affiliate_videos_q.scalar() or 0
 
-    # Shopee — chỉ order_type='placed'
-    shopee_sales = (
+    shopee_sales_q = (
         db.query(func.coalesce(func.sum(models.ShopeeShopDaily.total_sales), 0))
         .filter(models.ShopeeShopDaily.order_type == "placed")
-        .scalar()
-    ) or 0
-    shopee_orders = (
+    )
+    shopee_sales_q = apply_date_filter(shopee_sales_q, models.ShopeeShopDaily.stat_date, d_from, d_to)
+    shopee_sales = shopee_sales_q.scalar() or 0
+
+    shopee_orders_q = (
         db.query(func.coalesce(func.sum(models.ShopeeShopDaily.total_orders), 0))
         .filter(models.ShopeeShopDaily.order_type == "placed")
-        .scalar()
-    ) or 0
-    shopee_visits = (
+    )
+    shopee_orders_q = apply_date_filter(shopee_orders_q, models.ShopeeShopDaily.stat_date, d_from, d_to)
+    shopee_orders = shopee_orders_q.scalar() or 0
+
+    shopee_visits_q = (
         db.query(func.coalesce(func.sum(models.ShopeeShopDaily.visits), 0))
         .filter(models.ShopeeShopDaily.order_type == "placed")
-        .scalar()
-    ) or 0
+    )
+    shopee_visits_q = apply_date_filter(shopee_visits_q, models.ShopeeShopDaily.stat_date, d_from, d_to)
+    shopee_visits = shopee_visits_q.scalar() or 0
 
     return {
+        "date_range": dr,
         "tiktok": {
             "gmv": float(tiktok_gmv),
             "orders": int(tiktok_orders),
@@ -176,11 +201,15 @@ def exchange_rate():
 def top_products(
     limit: int = 20,
     offset: int = 0,
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Top sản phẩm TikTok — loại đơn đã hủy."""
     limit = min(max(limit, 1), 100)
     offset = max(offset, 0)
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
     base = (
         db.query(
             models.TiktokOrder.seller_sku,
@@ -189,8 +218,9 @@ def top_products(
             func.sum(models.TiktokOrder.quantity).label("qty"),
         )
         .filter(models.TiktokOrder.order_status != "Đã hủy")
-        .group_by(models.TiktokOrder.seller_sku, models.TiktokOrder.product_name)
     )
+    base = apply_date_filter(base, models.TiktokOrder.created_time, d_from, d_to)
+    base = base.group_by(models.TiktokOrder.seller_sku, models.TiktokOrder.product_name)
     subq = base.subquery()
     total = db.query(func.count()).select_from(subq).scalar() or 0
     rows = (
@@ -200,6 +230,7 @@ def top_products(
         .all()
     )
     return {
+        "date_range": dr,
         "total": int(total),
         "offset": offset,
         "limit": limit,
@@ -292,11 +323,15 @@ def shopee_daily(
     order_type: str = "placed",
     limit: int = 100,
     offset: int = 0,
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Doanh số Shopee theo ngày."""
-    limit = min(max(limit, 1), 100)
+    limit = min(max(limit, 1), 500)
     offset = max(offset, 0)
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
     base = (
         db.query(
             models.ShopeeShopDaily.stat_date,
@@ -305,12 +340,14 @@ def shopee_daily(
             func.sum(models.ShopeeShopDaily.visits).label("visits"),
         )
         .filter(models.ShopeeShopDaily.order_type == order_type)
-        .group_by(models.ShopeeShopDaily.stat_date)
     )
+    base = apply_date_filter(base, models.ShopeeShopDaily.stat_date, d_from, d_to)
+    base = base.group_by(models.ShopeeShopDaily.stat_date)
     subq = base.subquery()
     total = db.query(func.count()).select_from(subq).scalar() or 0
     rows = base.order_by(models.ShopeeShopDaily.stat_date).offset(offset).limit(limit).all()
     return {
+        "date_range": dr,
         "total": int(total),
         "offset": offset,
         "limit": limit,
@@ -331,18 +368,35 @@ def affiliate_report(
     sort: str = "gmv",
     limit: int = 20,
     offset: int = 0,
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """
-    Báo cáo Affiliate — xếp hạng creator.
-    sort: gmv | views | roi | avg_ad_cost | orders
-    """
     allowed = {"gmv", "views", "roi", "avg_ad_cost", "orders"}
     if sort not in allowed:
         raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
-    return get_affiliate_report(
-        db, sort=sort, limit=min(max(limit, 1), 100), offset=max(offset, 0)
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
+    result = get_affiliate_report(
+        db, sort=sort, limit=min(max(limit, 1), 100), offset=max(offset, 0),
+        date_from=d_from, date_to=d_to,
     )
+    result["date_range"] = dr
+    return result
+
+
+@app.get("/api/report/affiliate-trend")
+def affiliate_trend(
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Biểu đồ xu hướng affiliate GMV/view/đơn theo ngày."""
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
+    result = get_affiliate_trend(db, date_from=d_from, date_to=d_to)
+    result["date_range"] = dr
+    return result
 
 
 @app.get("/api/report/affiliate/{creator_username}/videos")
@@ -351,19 +405,25 @@ def affiliate_creator_videos(
     sort: str = "gmv",
     limit: int = 20,
     offset: int = 0,
+    preset: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Chi tiết video affiliate của một creator."""
     allowed = {"gmv", "views", "roi", "orders"}
     if sort not in allowed:
         raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
+    d_from, d_to, dr = _dates(preset, date_from, date_to)
     result = get_creator_videos(
         db,
         creator_username,
         sort=sort,
         limit=min(max(limit, 1), 100),
         offset=max(offset, 0),
+        date_from=d_from,
+        date_to=d_to,
     )
+    result["date_range"] = dr
     if not result["videos"] and not result["summary"]["gmv"]:
         raise HTTPException(404, f"Không tìm thấy creator: {creator_username}")
     return result

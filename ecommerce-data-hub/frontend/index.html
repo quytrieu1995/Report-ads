@@ -296,6 +296,68 @@
     .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
     .pagination button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
     .pagination .page-info { font-family: var(--mono); color: var(--accent); }
+    .date-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      padding: 0.85rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .date-filter-bar .filter-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-right: 0.25rem;
+    }
+    .date-preset-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .date-preset-btn:hover { border-color: var(--accent); color: var(--text); }
+    .date-preset-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: #3ddc8415;
+    }
+    .date-custom-fields {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .date-custom-fields.visible { display: flex; }
+    .date-custom-fields input[type="date"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+    .date-range-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      margin-left: auto;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 0.5rem;
+    }
+    .chart-legend span { font-family: var(--mono); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -316,6 +378,20 @@
 
     <section>
       <h2>Báo cáo</h2>
+      <div class="date-filter-bar" role="group" aria-label="Lọc theo thời gian">
+        <span class="filter-label">Thời gian:</span>
+        <button type="button" class="date-preset-btn active" data-preset="all" aria-pressed="true">Tất cả</button>
+        <button type="button" class="date-preset-btn" data-preset="week" aria-pressed="false">Tuần này</button>
+        <button type="button" class="date-preset-btn" data-preset="month" aria-pressed="false">Tháng này</button>
+        <button type="button" class="date-preset-btn" data-preset="custom" aria-pressed="false">Tuỳ chọn</button>
+        <div class="date-custom-fields" id="date-custom-fields">
+          <input type="date" id="date-from" aria-label="Từ ngày">
+          <span style="color:var(--text-dim)">→</span>
+          <input type="date" id="date-to" aria-label="Đến ngày">
+          <button type="button" class="date-preset-btn" id="date-apply">Áp dụng</button>
+        </div>
+        <span class="date-range-hint" id="date-range-hint"></span>
+      </div>
       <div class="platform-tabs" role="tablist" aria-label="Chọn nền tảng">
         <button type="button" class="platform-tab active" data-platform="tiktok" role="tab" aria-selected="true">TikTok Shop</button>
         <button type="button" class="platform-tab" data-platform="shopee" role="tab">Shopee</button>
@@ -342,6 +418,8 @@
             <button type="button" class="tab-btn" data-sort="orders">Top Đơn hàng</button>
           </div>
           <div class="affiliate-summary" id="affiliate-summary"></div>
+          <div class="chart-legend" id="affiliate-trend-legend"></div>
+          <div class="chart-wrap" id="affiliate-trend-chart"><div class="empty">Chưa có dữ liệu affiliate</div></div>
           <div id="affiliate-toolbar"></div>
           <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
           <div id="affiliate-pager"></div>
@@ -449,6 +527,7 @@
     const state = {
       platform: 'tiktok',
       affiliateSort: 'gmv',
+      dateFilter: { preset: 'all', dateFrom: '', dateTo: '' },
       tables: {
         tiktokProducts: { page: 1, pageSize: 20, total: 0 },
         affiliate: { page: 1, pageSize: 20, total: 0 },
@@ -460,6 +539,67 @@
     }
 
     const formatRoi = (n) => (n == null || isNaN(n)) ? '—' : n.toFixed(2) + 'x'
+
+    const buildQuery = (params = {}) => {
+      const p = new URLSearchParams()
+      Object.entries(params).forEach(([k, v]) => {
+        if (v != null && v !== '') p.set(k, String(v))
+      })
+      const f = state.dateFilter
+      if (f.preset === 'week' || f.preset === 'month') {
+        p.set('preset', f.preset)
+      } else if (f.preset === 'custom' && f.dateFrom) {
+        p.set('preset', 'custom')
+        p.set('date_from', f.dateFrom)
+        if (f.dateTo) p.set('date_to', f.dateTo)
+      }
+      return p.toString()
+    }
+
+    const updateDateRangeHint = (dr) => {
+      const el = document.getElementById('date-range-hint')
+      if (!el) return
+      if (dr?.active && dr.date_from) {
+        el.textContent = `${dr.date_from} → ${dr.date_to || '…'}`
+      } else if (state.dateFilter.preset === 'week') {
+        el.textContent = 'Tuần này'
+      } else if (state.dateFilter.preset === 'month') {
+        el.textContent = 'Tháng này'
+      } else {
+        el.textContent = ''
+      }
+    }
+
+    const resetTablePages = () => {
+      Object.values(state.tables).forEach(t => { t.page = 1 })
+    }
+
+    const applyDateFilter = () => {
+      resetTablePages()
+      refreshAll()
+    }
+
+    document.querySelectorAll('.date-preset-btn[data-preset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.preset
+        state.dateFilter.preset = preset
+        document.querySelectorAll('.date-preset-btn[data-preset]').forEach(b => {
+          const on = b === btn
+          b.classList.toggle('active', on)
+          b.setAttribute('aria-pressed', on ? 'true' : 'false')
+        })
+        const customEl = document.getElementById('date-custom-fields')
+        customEl.classList.toggle('visible', preset === 'custom')
+        if (preset !== 'custom') applyDateFilter()
+      })
+    })
+
+    document.getElementById('date-apply').addEventListener('click', () => {
+      state.dateFilter.dateFrom = document.getElementById('date-from').value
+      state.dateFilter.dateTo = document.getElementById('date-to').value
+      if (!state.dateFilter.dateFrom) return
+      applyDateFilter()
+    })
 
     const offsetOf = (key) => {
       const t = state.tables[key]
@@ -548,8 +688,9 @@
 
     // --- KPI theo tab ---
     const loadSummary = async () => {
-      const res = await fetch(`${API}/api/summary`)
+      const res = await fetch(`${API}/api/summary?${buildQuery()}`)
       const d = await res.json()
+      updateDateRangeHint(d.date_range)
       document.getElementById('tiktok-kpi').innerHTML = `
         <div class="kpi-card"><div class="kpi-label">GMV</div><div class="kpi-value">${formatVND(d.tiktok.gmv)}</div><div class="kpi-sub">${formatNum(d.tiktok.orders)} đơn</div></div>
         <div class="kpi-card"><div class="kpi-label">ROI Quảng cáo</div><div class="kpi-value">${d.tiktok.ad_roi}x</div><div class="kpi-sub">${formatVND(d.tiktok.ad_revenue)} / ${formatVND(d.tiktok.ad_cost)}</div></div>
@@ -566,7 +707,7 @@
     const loadTiktokProducts = async () => {
       const key = 'tiktokProducts'
       const t = state.tables[key]
-      const res = await fetch(`${API}/api/report/top-products?limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const res = await fetch(`${API}/api/report/top-products?${buildQuery({ limit: t.pageSize, offset: offsetOf(key) })}`)
       const d = await res.json()
       t.total = d.total || 0
       renderToolbar('tiktok-products-toolbar', key)
@@ -588,10 +729,22 @@
       renderPager('tiktok-products-pager', key)
     }
 
+    const loadAffiliateTrend = async () => {
+      const res = await fetch(`${API}/api/report/affiliate-trend?${buildQuery()}`)
+      const d = await res.json()
+      const legend = document.getElementById('affiliate-trend-legend')
+      if (d.totals && d.daily?.length) {
+        legend.innerHTML = `GMV: <span>${formatVND(d.totals.gmv)}</span> · View: <span>${formatNum(d.totals.views)}</span> · Đơn: <span>${formatNum(d.totals.orders)}</span>`
+      } else {
+        legend.innerHTML = ''
+      }
+      drawAreaChart('affiliate-trend-chart', d.daily || [], 'gmv', '#3ddc84')
+    }
+
     const loadAffiliateReport = async () => {
       const key = 'affiliate'
       const t = state.tables[key]
-      const res = await fetch(`${API}/api/report/affiliate?sort=${state.affiliateSort}&limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const res = await fetch(`${API}/api/report/affiliate?${buildQuery({ sort: state.affiliateSort, limit: t.pageSize, offset: offsetOf(key) })}`)
       const d = await res.json()
       t.total = d.total || 0
       const sumEl = document.getElementById('affiliate-summary')
@@ -648,16 +801,20 @@
       loadAffiliateReport()
     })
 
-    const drawLineChart = (points) => {
-      const wrap = document.getElementById('shopee-chart')
-      if (!points.length) { wrap.innerHTML = '<div class="empty">Chưa có dữ liệu Shopee</div>'; return }
+    const drawAreaChart = (containerId, points, valueKey, color = '#3ddc84') => {
+      const wrap = document.getElementById(containerId)
+      if (!wrap) return
+      if (!points.length) {
+        wrap.innerHTML = '<div class="empty">Chưa có dữ liệu trong khoảng thời gian</div>'
+        return
+      }
       const W = 800, H = 220, pad = { t: 20, r: 20, b: 40, l: 70 }
       const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b
-      const maxY = Math.max(...points.map(p => p.sales), 1)
+      const maxY = Math.max(...points.map(p => p[valueKey] || 0), 1)
       const xStep = iw / Math.max(points.length - 1, 1)
       const toX = (i) => pad.l + i * xStep
       const toY = (v) => pad.t + ih - (v / maxY) * ih
-      const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.sales).toFixed(1)}`).join(' ')
+      const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p[valueKey] || 0).toFixed(1)}`).join(' ')
       const areaD = pathD + ` L${toX(points.length - 1).toFixed(1)},${(pad.t + ih).toFixed(1)} L${pad.l},${(pad.t + ih).toFixed(1)} Z`
       let yLabels = ''
       for (let i = 0; i <= 4; i++) {
@@ -670,12 +827,16 @@
         if (points.length > 15 && i % 2 !== 0) return ''
         return `<text x="${toX(i)}" y="${H - 8}" fill="#7a9a7e" font-size="9" text-anchor="middle" font-family="monospace">${p.date ? p.date.slice(5) : ''}</text>`
       }).join('')
-      const dots = points.map((p, i) => `<circle cx="${toX(i)}" cy="${toY(p.sales)}" r="3" fill="#3ddc84"/>`).join('')
-      wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${yLabels}<path d="${areaD}" fill="#3ddc8420"/><path d="${pathD}" fill="none" stroke="#3ddc84" stroke-width="2"/>${dots}${xLabels}</svg>`
+      const dots = points.map((p, i) => `<circle cx="${toX(i)}" cy="${toY(p[valueKey] || 0)}" r="3" fill="${color}"/>`).join('')
+      wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${yLabels}<path d="${areaD}" fill="${color}20"/><path d="${pathD}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xLabels}</svg>`
+    }
+
+    const drawLineChart = (points) => {
+      drawAreaChart('shopee-chart', points, 'sales', '#3ddc84')
     }
 
     const loadShopeeChart = async () => {
-      const res = await fetch(`${API}/api/report/shopee-daily?limit=500&offset=0`)
+      const res = await fetch(`${API}/api/report/shopee-daily?${buildQuery({ limit: 500, offset: 0 })}`)
       const d = await res.json()
       drawLineChart(d.daily || [])
     }
@@ -683,7 +844,7 @@
     const loadShopeeDailyTable = async () => {
       const key = 'shopeeDaily'
       const t = state.tables[key]
-      const res = await fetch(`${API}/api/report/shopee-daily?limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const res = await fetch(`${API}/api/report/shopee-daily?${buildQuery({ limit: t.pageSize, offset: offsetOf(key) })}`)
       const d = await res.json()
       t.total = d.total || 0
       renderToolbar('shopee-daily-toolbar', key)
@@ -755,7 +916,7 @@
       modalBody.innerHTML = '<div class="empty">Đang tải video...</div>'
       const key = 'modalVideos'
       const t = state.tables[key]
-      const res = await fetch(`${API}/api/report/affiliate/${encodeURIComponent(username)}/videos?sort=gmv&limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const res = await fetch(`${API}/api/report/affiliate/${encodeURIComponent(username)}/videos?${buildQuery({ sort: 'gmv', limit: t.pageSize, offset: offsetOf(key) })}`)
       if (!res.ok) {
         modalBody.innerHTML = '<div class="empty">Không tìm thấy dữ liệu video</div>'
         return
@@ -859,6 +1020,7 @@
     const refreshAll = () => {
       loadSummary()
       loadTiktokProducts()
+      loadAffiliateTrend()
       loadAffiliateReport()
       loadShopeeChart()
       loadShopeeDailyTable()

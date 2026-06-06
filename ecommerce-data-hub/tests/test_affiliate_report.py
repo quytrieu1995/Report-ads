@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database import Base
 from ingest import ingest_file
-from reports.affiliate import get_affiliate_report, get_creator_videos
+from reports.affiliate import get_affiliate_report, get_affiliate_trend, get_creator_videos
 
 SAMPLES = ROOT / "tests" / "samples"
 TEST_DB = ROOT / "data" / "test_affiliate_report.db"
@@ -52,6 +52,10 @@ def run_test():
     by_roi = get_affiliate_report(db, sort="roi")
     print(f"✓ Sort views OK ({len(by_views['creators'])} rows)")
     print(f"✓ Sort roi OK ({len(by_roi['creators'])} rows)")
+
+    trend = get_affiliate_trend(db)
+    assert "daily" in trend and "totals" in trend
+    print(f"✓ Affiliate trend: {len(trend['daily'])} days, GMV={trend['totals']['gmv']}")
 
     db.close()
     print("\n✓ Affiliate report tests passed")
