@@ -12,10 +12,11 @@ from sqlalchemy.orm import Session
 import models
 from database import Base, engine, get_db
 from ingest import delete_batch, ingest_file
+from migrate import init_db
 from reports.affiliate import get_affiliate_report, get_creator_videos
 
-# Tạo bảng lúc startup
-Base.metadata.create_all(bind=engine)
+# Tạo bảng + tự migrate cột mới (DB cũ không cần xóa)
+init_db(engine, Base.metadata)
 
 app = FastAPI(title="E-commerce Data Hub", version="1.0.0")
 
