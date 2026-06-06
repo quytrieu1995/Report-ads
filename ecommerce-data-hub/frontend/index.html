@@ -76,6 +76,73 @@
     .upload-result.success { background: #0f2a18; color: var(--accent); }
     .upload-result.duplicate { background: #2a2510; color: var(--warning); }
     .upload-result.error { background: #2a1010; color: var(--danger); }
+    .upload-progress-panel {
+      display: none;
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .upload-progress-panel.active { display: block; }
+    .upload-progress-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+      font-size: 0.85rem;
+    }
+    .upload-progress-label {
+      flex: 1;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .upload-progress-pct {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 3rem;
+      text-align: right;
+    }
+    .btn-upload-cancel {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 0.35rem 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-upload-cancel:hover { background: var(--danger); color: #fff; }
+    .upload-progress-track {
+      height: 8px;
+      background: #0d150d;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .upload-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2a9d5c, var(--accent));
+      border-radius: 3px;
+      transition: width 0.15s ease;
+    }
+    .upload-progress-detail {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--mono);
+    }
+    .dropzone.uploading {
+      opacity: 0.55;
+      pointer-events: none;
+      cursor: wait;
+    }
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -411,6 +478,17 @@
         <p>hoặc bấm để chọn — hỗ trợ CSV, XLSX (TikTok Shop, Shopee)</p>
         <input type="file" id="file-input" multiple accept=".csv,.xlsx,.xls">
       </div>
+      <div class="upload-progress-panel" id="upload-progress" role="status" aria-live="polite">
+        <div class="upload-progress-header">
+          <span class="upload-progress-label" id="upload-progress-label">Đang upload...</span>
+          <span class="upload-progress-pct" id="upload-progress-pct">0%</span>
+          <button type="button" class="btn-upload-cancel" id="upload-cancel" aria-label="Huỷ upload">Huỷ</button>
+        </div>
+        <div class="upload-progress-track" aria-hidden="true">
+          <div class="upload-progress-bar" id="upload-progress-bar"></div>
+        </div>
+        <div class="upload-progress-detail" id="upload-progress-detail"></div>
+      </div>
       <div class="upload-results" id="upload-results"></div>
     </section>
 
@@ -579,35 +657,190 @@
     const dropzone = document.getElementById('dropzone')
     const fileInput = document.getElementById('file-input')
     const uploadResults = document.getElementById('upload-results')
+    const uploadProgressPanel = document.getElementById('upload-progress')
+    const uploadProgressBar = document.getElementById('upload-progress-bar')
+    const uploadProgressPct = document.getElementById('upload-progress-pct')
+    const uploadProgressLabel = document.getElementById('upload-progress-label')
+    const uploadProgressDetail = document.getElementById('upload-progress-detail')
+    const uploadCancelBtn = document.getElementById('upload-cancel')
+
+    const uploadState = {
+      active: false,
+      cancelled: false,
+      xhr: null,
+    }
+
+    const setUploadProgress = (pct, label, detail = '') => {
+      const clamped = Math.min(100, Math.max(0, Math.round(pct)))
+      uploadProgressBar.style.width = `${clamped}%`
+      uploadProgressPct.textContent = `${clamped}%`
+      if (label) uploadProgressLabel.textContent = label
+      uploadProgressDetail.textContent = detail
+    }
+
+    const showUploadProgress = (fileCount) => {
+      uploadProgressPanel.classList.add('active')
+      dropzone.classList.add('uploading')
+      setUploadProgress(0, 'Đang chuẩn bị upload...', `${fileCount} file`)
+    }
+
+    const hideUploadProgress = () => {
+      uploadProgressPanel.classList.remove('active')
+      dropzone.classList.remove('uploading')
+      uploadProgressBar.style.width = '0%'
+      uploadProgressPct.textContent = '0%'
+    }
+
+    const renderUploadResults = (results) => {
+      if (!results.length) {
+        uploadResults.innerHTML = '<div class="upload-result error">Không có kết quả</div>'
+        return
+      }
+      uploadResults.innerHTML = results.map(r => {
+        const cls = r.status === 'success' ? 'success' : r.status === 'duplicate' ? 'duplicate' : 'error'
+        return `<div class="upload-result ${cls}">${r.filename}: ${r.message || r.status}${r.row_count != null ? ` (${r.row_count} dòng)` : ''}</div>`
+      }).join('')
+    }
+
+    const uploadOneFile = (file, fileIndex, totalFiles, onProgress) => {
+      return new Promise((resolve, reject) => {
+        const fd = new FormData()
+        fd.append('files', file)
+        const xhr = new XMLHttpRequest()
+        uploadState.xhr = xhr
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (uploadState.cancelled) return
+          const fileRatio = e.lengthComputable ? e.loaded / e.total : 0
+          const base = fileIndex / totalFiles
+          const overall = (base + fileRatio / totalFiles) * 100
+          const pctLabel = e.lengthComputable
+            ? Math.round(fileRatio * 100)
+            : null
+          setUploadProgress(
+            overall,
+            pctLabel != null && fileRatio < 1
+              ? `Đang upload (${fileIndex + 1}/${totalFiles}): ${file.name}`
+              : `Đang xử lý (${fileIndex + 1}/${totalFiles}): ${file.name}`,
+            pctLabel != null && fileRatio < 1
+              ? `File hiện tại: ${pctLabel}% · Tổng: ${Math.round(overall)}%`
+              : `Đang phân tích dữ liệu trên server...`
+          )
+          onProgress?.(fileRatio)
+        })
+
+        xhr.addEventListener('load', () => {
+          uploadState.xhr = null
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText))
+            } catch {
+              reject(new Error('Phản hồi server không hợp lệ'))
+            }
+            return
+          }
+          let msg = `HTTP ${xhr.status}`
+          try {
+            const err = JSON.parse(xhr.responseText)
+            if (err.detail) msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)
+          } catch { /* ignore */ }
+          reject(new Error(msg))
+        })
+
+        xhr.addEventListener('error', () => {
+          uploadState.xhr = null
+          reject(new Error('Lỗi kết nối mạng'))
+        })
+
+        xhr.addEventListener('abort', () => {
+          uploadState.xhr = null
+          reject(new DOMException('Upload đã bị huỷ', 'AbortError'))
+        })
+
+        xhr.open('POST', `${API}/api/upload`)
+        xhr.send(fd)
+      })
+    }
+
+    const handleCancelUpload = () => {
+      if (!uploadState.active) return
+      uploadState.cancelled = true
+      uploadState.xhr?.abort()
+      setUploadProgress(
+        parseInt(uploadProgressPct.textContent, 10) || 0,
+        'Đang huỷ upload...',
+        'Dừng các file còn lại'
+      )
+    }
+
+    uploadCancelBtn.addEventListener('click', handleCancelUpload)
 
     const handleFiles = async (files) => {
       if (!files.length) return
-      const fd = new FormData()
-      for (const f of files) fd.append('files', f)
-      uploadResults.innerHTML = '<div class="upload-result">Đang xử lý...</div>'
+      if (uploadState.active) return
+
+      uploadState.active = true
+      uploadState.cancelled = false
+      uploadResults.innerHTML = ''
+      showUploadProgress(files.length)
+
+      const allResults = []
+      const total = files.length
+
       try {
-        const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd })
-        const data = await res.json()
-        uploadResults.innerHTML = data.results.map(r => {
-          const cls = r.status === 'success' ? 'success' : r.status === 'duplicate' ? 'duplicate' : 'error'
-          return `<div class="upload-result ${cls}">${r.filename}: ${r.message || r.status}${r.row_count != null ? ` (${r.row_count} dòng)` : ''}</div>`
-        }).join('')
+        for (let i = 0; i < total; i++) {
+          if (uploadState.cancelled) break
+          const file = files[i]
+          const data = await uploadOneFile(file, i, total)
+          allResults.push(...(data.results || []))
+          setUploadProgress(
+            ((i + 1) / total) * 100,
+            uploadState.cancelled ? 'Đã huỷ' : `Hoàn thành (${i + 1}/${total}): ${file.name}`,
+            uploadState.cancelled ? '' : `Tổng tiến độ: ${Math.round(((i + 1) / total) * 100)}%`
+          )
+        }
+
+        if (uploadState.cancelled) {
+          uploadResults.innerHTML = `<div class="upload-result duplicate">Đã huỷ upload${allResults.length ? ` — ${allResults.length} file đã xử lý xong trước khi huỷ` : ''}</div>`
+          if (allResults.length) renderUploadResults(allResults)
+          return
+        }
+
+        renderUploadResults(allResults)
         refreshAll()
       } catch (e) {
-        uploadResults.innerHTML = `<div class="upload-result error">Lỗi: ${e.message}</div>`
+        if (e.name === 'AbortError' || uploadState.cancelled) {
+          uploadResults.innerHTML = `<div class="upload-result duplicate">Đã huỷ upload${allResults.length ? ` — ${allResults.length} file đã xử lý xong` : ''}</div>`
+          if (allResults.length) renderUploadResults(allResults)
+          if (allResults.some(r => r.status === 'success')) refreshAll()
+        } else {
+          uploadResults.innerHTML = `<div class="upload-result error">Lỗi: ${e.message}</div>`
+          if (allResults.length) renderUploadResults(allResults)
+        }
+      } finally {
+        uploadState.active = false
+        uploadState.xhr = null
+        hideUploadProgress()
+        fileInput.value = ''
       }
     }
 
-    dropzone.addEventListener('click', () => fileInput.click())
-    dropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click() } })
-    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover') })
+    dropzone.addEventListener('click', () => { if (!uploadState.active) fileInput.click() })
+    dropzone.addEventListener('keydown', (e) => {
+      if (uploadState.active) return
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click() }
+    })
+    dropzone.addEventListener('dragover', (e) => { if (uploadState.active) return; e.preventDefault(); dropzone.classList.add('dragover') })
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'))
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault()
       dropzone.classList.remove('dragover')
+      if (uploadState.active) return
       handleFiles([...e.dataTransfer.files])
     })
-    fileInput.addEventListener('change', () => handleFiles([...fileInput.files]))
+    fileInput.addEventListener('change', () => {
+      handleFiles([...fileInput.files])
+    })
 
     const PAGE_SIZES = [20, 50, 100]
 
