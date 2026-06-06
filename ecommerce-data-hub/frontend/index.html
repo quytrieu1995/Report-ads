@@ -369,6 +369,7 @@
         <div class="kpi-card"><div class="kpi-label">Affiliate Creators</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_creators)}</div></div>
         <div class="kpi-card"><div class="kpi-label">Affiliate Videos</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_videos)}</div></div>
         <div class="kpi-card"><div class="kpi-label">Shopee Doanh số</div><div class="kpi-value">${formatVND(d.shopee.sales)}</div><div class="kpi-sub">${formatNum(d.shopee.orders)} đơn · ${formatNum(d.shopee.visits)} truy cập</div></div>
+        <div class="kpi-card"><div class="kpi-label">Tỉ giá USD/VND</div><div class="kpi-value">${d.exchange_rate ? formatNum(d.exchange_rate.rate) : '—'}</div><div class="kpi-sub">${d.exchange_rate ? d.exchange_rate.source : ''}</div></div>
       `
     }
 

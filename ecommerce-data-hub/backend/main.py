@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import Base, engine, get_db
+from currency import get_usd_vnd_rate
 from ingest import delete_batch, ingest_file
 from migrate import init_db
 from reports.affiliate import get_affiliate_report, get_creator_videos
@@ -145,7 +146,14 @@ def get_summary(db: Session = Depends(get_db)):
             "orders": float(shopee_orders),
             "visits": float(shopee_visits),
         },
+        "exchange_rate": get_usd_vnd_rate(),
     }
+
+
+@app.get("/api/exchange-rate")
+def exchange_rate():
+    """Tỉ giá USD/VND hiện hành."""
+    return get_usd_vnd_rate()
 
 
 @app.get("/api/report/top-products")

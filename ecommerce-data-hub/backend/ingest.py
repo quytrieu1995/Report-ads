@@ -28,14 +28,20 @@ def _file_hash(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def _insert_rows(db: Session, model_cls: type, batch_id: int, rows: list[dict]) -> int:
-    """Ghi danh sách dict vào bảng fact."""
+def _insert_rows(db: Session, model_cls: type, batch_id: int, rows: list[dict]) -> tuple[int, dict]:
+    """Ghi danh sách dict vào bảng fact — bỏ key nội bộ (_fx_rate...)."""
     count = 0
+    meta: dict = {"usd_converted": 0, "fx_rate": None, "fx_source": None}
     for row in rows:
-        obj = model_cls(batch_id=batch_id, **row)
+        if row.get("_fx_from") == "USD":
+            meta["usd_converted"] += 1
+            meta["fx_rate"] = row.get("_fx_rate")
+            meta["fx_source"] = row.get("_fx_source")
+        clean = {k: v for k, v in row.items() if not k.startswith("_")}
+        obj = model_cls(batch_id=batch_id, **clean)
         db.add(obj)
         count += 1
-    return count
+    return count, meta
 
 
 def ingest_file(db: Session, filename: str, content: bytes) -> dict[str, Any]:
@@ -85,16 +91,22 @@ def ingest_file(db: Session, filename: str, content: bytes) -> dict[str, Any]:
             assert isinstance(parsed, dict)
             daily_rows = parsed.get("daily", [])
             product_rows = parsed.get("product", [])
-            total_rows += _insert_rows(db, models.ShopeeShopDaily, batch.id, daily_rows)
-            total_rows += _insert_rows(db, models.ShopeeProductStat, batch.id, product_rows)
+            n1, _ = _insert_rows(db, models.ShopeeShopDaily, batch.id, daily_rows)
+            n2, _ = _insert_rows(db, models.ShopeeProductStat, batch.id, product_rows)
+            total_rows = n1 + n2
+            fx_meta = {}
         else:
             assert isinstance(parsed, list)
             model_classes = MODEL_MAP[source_type]
-            total_rows = _insert_rows(db, model_classes[0], batch.id, parsed)
+            total_rows, fx_meta = _insert_rows(db, model_classes[0], batch.id, parsed)
 
         batch.row_count = total_rows
         batch.status = "success"
-        batch.message = f"Đã nạp {total_rows} dòng"
+        msg = f"Đã nạp {total_rows} dòng"
+        if fx_meta.get("usd_converted"):
+            rate = fx_meta.get("fx_rate")
+            msg += f" · Quy đổi {fx_meta['usd_converted']} dòng USD→VND (1 USD = {rate:,.0f} VND)"
+        batch.message = msg
         db.commit()
 
         return {

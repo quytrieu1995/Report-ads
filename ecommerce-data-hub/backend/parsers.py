@@ -206,6 +206,29 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Alias cột Creative data — export mới (2026) đổi tên
+AD_CREATIVE_ALIASES = {
+    "ID bài đăng": "ID video",
+    "Mẫu quảng cáo": "Tiêu đề video",
+}
+
+
+def _apply_column_aliases(df: pd.DataFrame, aliases: dict[str, str]) -> pd.DataFrame:
+    """Đổi tên cột alias → tên chuẩn (export TikTok đổi tên theo thời gian)."""
+    rename = {k: v for k, v in aliases.items() if k in df.columns and v not in df.columns}
+    if rename:
+        df = df.rename(columns=rename)
+    return df
+
+
+def _is_ad_creative_columns(cols: set[str]) -> bool:
+    """Nhận diện file Creative data (schema cũ hoặc mới)."""
+    has_id = "ID video" in cols or "ID bài đăng" in cols
+    has_type = "Loại nội dung sáng tạo" in cols
+    has_title = "Tiêu đề video" in cols or "Mẫu quảng cáo" in cols
+    return has_id and has_type and has_title
+
+
 def _row_to_dict(row: pd.Series, mapping: dict[str, str], transforms: dict[str, Any]) -> dict:
     """Map cột gốc → snake_case và áp transform."""
     out: dict[str, Any] = {}
@@ -244,7 +267,7 @@ def detect_source_type(filename: str, content: bytes) -> str:
             cols = {str(c).strip() for c in df.columns}
             if "Tổng doanh số (VND)" in cols:
                 return "shopee_shop"
-            if "ID video" in cols and "Loại nội dung sáng tạo" in cols:
+            if _is_ad_creative_columns(cols):
                 return "tiktok_ad_creative"
             if "Tên video" in cols and "Tên người dùng của nhà sáng tạo" in cols:
                 return "tiktok_affiliate_video"
@@ -385,21 +408,36 @@ TIKTOK_AD_TRANSFORMS = {
 
 
 def parse_tiktok_ad_creative(content: bytes) -> list[dict]:
-    """Parse xlsx hiệu suất video quảng cáo (gồm cả Thẻ sản phẩm, ID video = N/A)."""
-    df = pd.read_excel(
-        io.BytesIO(content),
-        dtype={"ID video": str},
-        engine="openpyxl",
-    )
+    """
+    Parse xlsx Creative data — cột chuẩn ID video / Tiêu đề video.
+    Tự quy đổi USD → VND nếu Đơn vị tiền tệ = USD.
+    """
+    from currency import convert_ad_row_usd_to_vnd, get_usd_vnd_rate, is_usd_currency
+
+    dtype = {"ID video": str, "ID bài đăng": str}
+    df = pd.read_excel(io.BytesIO(content), dtype=dtype, engine="openpyxl")
     df = _normalize_columns(df)
+    df = _apply_column_aliases(df, AD_CREATIVE_ALIASES)
+
+    fx_info = get_usd_vnd_rate()
+    fx_rate = fx_info["rate"]
+    usd_converted = 0
+
     rows = []
     for _, row in df.iterrows():
         rec = _row_to_dict(row, TIKTOK_AD_MAP, TIKTOK_AD_TRANSFORMS)
-        # Giữ dòng Thẻ sản phẩm (video_id = None) nếu có số liệu chi phí/doanh thu
         if rec.get("video_id") is None:
             if rec.get("cost") is None and rec.get("gross_revenue") is None:
                 continue
+        if is_usd_currency(rec.get("currency")):
+            rec = convert_ad_row_usd_to_vnd(rec, fx_rate)
+            usd_converted += 1
         rows.append(rec)
+
+    if usd_converted:
+        for r in rows:
+            if r.get("_fx_rate"):
+                r["_fx_source"] = fx_info.get("source")
     return rows
 
 

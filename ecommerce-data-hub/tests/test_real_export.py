@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 from parsers import (
+    detect_source_type,
     parse_date_flexible,
     parse_datetime_tiktok,
     parse_tiktok_ad_creative,
@@ -133,6 +134,75 @@ def build_real_fixtures():
     )
 
 
+def test_real_creative_usd_schema():
+    """Schema ID video + USD — tự quy đổi sang VND."""
+    from unittest.mock import patch
+
+    creative = pd.DataFrame([
+        {
+            "ID video": "7621554711556132116",
+            "Tiêu đề video": "Không tin luôn anh chị em...",
+            "Tài khoản TikTok": "🌻 Xuyến Miền Tây(N.Phụ)☘️",
+            "Loại nội dung sáng tạo": "Video",
+            "Trạng thái": "Đang phân phối",
+            "Thời gian đăng": "2026-03-26 20:24",
+            "Chi phí": 754.83,
+            "Số lượng đơn hàng SKU": 115,
+            "Chi phí cho mỗi đơn hàng": 6.56,
+            "Doanh thu gộp": 653.09,
+            "ROI": 0.87,
+            "Số lượt hiển thị quảng cáo sản phẩm": 1413460,
+            "Số lượt nhấp vào quảng cáo sản phẩm": 91808,
+            "Tỷ lệ nhấp vào quảng cáo sản phẩm": "6.50%",
+            "Tỷ lệ chuyển đổi quảng cáo": "0.41%",
+            "Tỷ lệ xem video quảng cáo trong 2 giây": "21.71%",
+            "Tỷ lệ xem video quảng cáo trong 6 giây": "6.77%",
+            "Tỷ lệ xem 25% thời lượng video quảng cáo": "2.65%",
+            "Tỷ lệ xem 50% thời lượng video quảng cáo": "0.78%",
+            "Tỷ lệ xem 75% thời lượng video quảng cáo": "0.41%",
+            "Tỷ lệ xem 100% thời lượng video quảng cáo": "0.16%",
+            "Đơn vị tiền tệ": "USD",
+        },
+        {
+            "ID video": "N/A",
+            "Tiêu đề video": "-",
+            "Tài khoản TikTok": "-",
+            "Loại nội dung sáng tạo": "Thẻ sản phẩm",
+            "Trạng thái": "Đang phân phối",
+            "Thời gian đăng": "-",
+            "Chi phí": 451.91,
+            "Số lượng đơn hàng SKU": 1954,
+            "Doanh thu gộp": 13468.95,
+            "ROI": 29.80,
+            "Số lượt hiển thị quảng cáo sản phẩm": 126826,
+            "Tỷ lệ nhấp vào quảng cáo sản phẩm": "6.12%",
+            "Tỷ lệ chuyển đổi quảng cáo": "2.54%",
+            "Tỷ lệ xem video quảng cáo trong 2 giây": "-",
+            "Đơn vị tiền tệ": "USD",
+        },
+    ])
+    content = _to_xlsx(creative, REAL / "Creative_data_usd_new_schema.xlsx")
+    assert detect_source_type("Creative_data.xlsx", content) == "tiktok_ad_creative"
+    with patch("currency.get_usd_vnd_rate", return_value={"rate": 25500.0, "source": "test"}):
+        rows = parse_tiktok_ad_creative(content)
+    assert len(rows) == 2
+
+    v = rows[0]
+    assert v["video_id"] == "7621554711556132116"
+    assert v["video_title"].startswith("Không tin")
+    assert v["currency"] == "VND"
+    assert v["cost"] == round(754.83 * 25500)
+    assert v["gross_revenue"] == round(653.09 * 25500)
+    assert v["product_ad_ctr"] == 6.50
+
+    card = rows[1]
+    assert card["video_id"] is None
+    assert card["creative_type"] == "Thẻ sản phẩm"
+    assert card["currency"] == "VND"
+    assert card["cost"] == round(451.91 * 25500)
+    print("✓ Real creative USD → VND OK")
+
+
 def test_real_creative():
     content = build_real_fixtures()[0]
     rows = parse_tiktok_ad_creative(content)
@@ -195,6 +265,7 @@ def test_helpers():
 
 if __name__ == "__main__":
     test_helpers()
+    test_real_creative_usd_schema()
     test_real_creative()
     test_real_creator()
     test_real_video()
