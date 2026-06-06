@@ -39,6 +39,75 @@ def _calc_roi(gmv: float, ad_cost: float, commission: float) -> Optional[float]:
     return None
 
 
+def _periods_overlap(
+    batch_start: Optional[date],
+    batch_end: Optional[date],
+    filter_start: Optional[date],
+    filter_end: Optional[date],
+) -> bool:
+    """True nếu kỳ export (từ tên file) giao với kỳ lọc."""
+    if batch_start is None and batch_end is None:
+        return True
+    bs = batch_start or batch_end
+    be = batch_end or batch_start
+    if bs is None or be is None:
+        return True
+    fs = filter_start or date.min
+    fe = filter_end or date.max
+    return not (be < fs or bs > fe)
+
+
+def _merge_creator_record(target: dict[str, Any], source: dict[str, Any]) -> None:
+    target["gmv"] = max(target["gmv"], source["gmv"])
+    target["views"] = max(target["views"], source["views"])
+    target["orders"] = max(target["orders"], source["orders"])
+    target["commission"] = max(target["commission"], source["commission"])
+    target["video_count"] = max(target["video_count"], source["video_count"])
+    target["followers"] = max(target["followers"], source["followers"])
+
+
+def _aggregate_creators_from_list_period(
+    db: Session,
+    date_from: Optional[date],
+    date_to: Optional[date],
+) -> dict[str, dict[str, Any]]:
+    """Creator List — lọc theo kỳ export (period trong tên file batch)."""
+    rows = (
+        db.query(
+            models.TiktokAffiliateCreator,
+            models.UploadBatch.period_start,
+            models.UploadBatch.period_end,
+        )
+        .join(models.UploadBatch, models.TiktokAffiliateCreator.batch_id == models.UploadBatch.id)
+        .all()
+    )
+    merged: dict[str, dict[str, Any]] = {}
+    for row, p_start, p_end in rows:
+        if not row.creator_username:
+            continue
+        if not _periods_overlap(p_start, p_end, date_from, date_to):
+            continue
+        key = row.creator_username
+        if key not in merged:
+            merged[key] = {
+                "creator_username": key,
+                "gmv": 0.0,
+                "views": 0.0,
+                "orders": 0.0,
+                "commission": 0.0,
+                "video_count": 0,
+                "followers": 0.0,
+            }
+        rec = merged[key]
+        rec["gmv"] = max(rec["gmv"], _safe_float(row.gmv))
+        rec["views"] = max(rec["views"], _safe_float(row.product_impressions))
+        rec["orders"] = max(rec["orders"], _safe_float(row.orders))
+        rec["commission"] = max(rec["commission"], _safe_float(row.estimated_commission))
+        rec["video_count"] = max(rec["video_count"], int(_safe_float(row.linked_videos)))
+        rec["followers"] = max(rec["followers"], _safe_float(row.followers))
+    return merged
+
+
 def _fetch_ad_by_account(
     db: Session,
     date_from: Optional[date] = None,
@@ -213,6 +282,12 @@ def get_affiliate_report(
 
     if has_date_filter:
         merged = _aggregate_creators_from_videos(db, date_from, date_to)
+        list_merged = _aggregate_creators_from_list_period(db, date_from, date_to)
+        for key, rec in list_merged.items():
+            if key not in merged:
+                merged[key] = rec
+            else:
+                _merge_creator_record(merged[key], rec)
         _merge_creator_list(db, merged, use_list_totals=False)
     else:
         merged = {}
@@ -224,7 +299,12 @@ def get_affiliate_report(
     for rec in merged.values():
         if not rec["creator_username"]:
             continue
-        if has_date_filter and rec["gmv"] == 0 and rec["video_count"] == 0:
+        if has_date_filter and (
+            rec["gmv"] == 0
+            and rec["video_count"] == 0
+            and rec["orders"] == 0
+            and rec["views"] == 0
+        ):
             continue
         ck = _normalize_key(rec["creator_username"])
         ad = _assign_ad_cost(ck, ad_map)

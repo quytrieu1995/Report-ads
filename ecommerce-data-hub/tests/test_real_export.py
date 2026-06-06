@@ -245,6 +245,38 @@ def test_real_creator():
     print("✓ Real creator list OK")
 
 
+def test_real_creator_english_schema():
+    """Creator List — cột tiếng Anh."""
+    creators = pd.DataFrame([
+        {
+            "Creator username": "songkhoemoingay._",
+            "Affiliate GMV": 2111928081,
+            "Affiliate LIVE GMV": 0,
+            "Affiliate shoppable video GMV": 2107788911,
+            "Affiliate product card GMV": 4139170,
+            "Affiliate linked products sold": 17,
+            "Items sold": 4396,
+            "Est. commission": 23761095,
+            "Est. flat fee": "--",
+            "Avg. order value": 504160,
+            "Affiliate orders": 4189,
+            "CTR": "2%",
+            "Target collaboration GMV": 2051196206,
+            "Open collaboration GMV": 59638859,
+            "Linked followers": 20019,
+        },
+    ])
+    content = _to_xlsx(creators, REAL / "Creator_List_en.xlsx")
+    assert detect_source_type("Creator_List.xlsx", content) == "tiktok_affiliate_creator"
+    rows = parse_tiktok_affiliate_creator(content)
+    assert len(rows) == 1
+    assert rows[0]["creator_username"] == "songkhoemoingay._"
+    assert rows[0]["gmv"] == 2111928081.0
+    assert rows[0]["ctr"] == 2.0
+    assert rows[0]["followers"] == 20019.0
+    print("✓ Real creator list (English columns) OK")
+
+
 def test_real_video():
     content = build_real_fixtures()[2]
     rows = parse_tiktok_affiliate_video(content)
@@ -379,6 +411,7 @@ if __name__ == "__main__":
     test_real_creative_usd_schema()
     test_real_creative()
     test_real_creator()
+    test_real_creator_english_schema()
     test_real_video()
     test_real_video_english_schema()
     test_real_affiliate_product_english_schema()

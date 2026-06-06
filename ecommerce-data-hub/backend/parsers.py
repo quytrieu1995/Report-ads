@@ -233,6 +233,34 @@ AFFILIATE_VIDEO_ALIASES = {
     "Shoppable video GPM": "GPM của video link bán hàng",
 }
 
+# Creator List — export tiếng Anh (2026)
+AFFILIATE_CREATOR_ALIASES = {
+    "Creator username": "Tên người dùng của nhà sáng tạo",
+    "Affiliate GMV": "GMV liên kết",
+    "Affiliate LIVE GMV": "GMV LIVE của liên kết",
+    "Affiliate shoppable video GMV": "GMV video link bán hàng của liên kết",
+    "Affiliate product card GMV": "GMV thẻ sản phẩm của liên kết",
+    "Affiliate linked products sold": "Sản phẩm liên kết đã bán",
+    "Items sold": "Số món bán ra",
+    "Est. commission": "Hoa hồng ước tính",
+    "Est. flat fee": "Phí cố định ước tính",
+    "Avg. order value": "Giá trị đơn hàng trung bình",
+    "Affiliate orders": "Đơn hàng liên kết",
+    "CTR": "Tỷ lệ nhấp (CTR)",
+    "Product impressions": "Lượt hiển thị sản phẩm",
+    "Avg. affiliate customers": "Khách hàng liên kết trung bình",
+    "Affiliate LIVE streams": "Buổi LIVE liên kết",
+    "Affiliate shoppable videos": "Video link bán hàng của liên kết",
+    "Target collaboration GMV": "GMV cộng tác mục tiêu",
+    "Est. commission in target collaboration": "Hoa hồng ước tính trong cộng tác mục tiêu",
+    "Open collaboration GMV": "GMV cộng tác mở",
+    "Est. commission in open collaboration": "Hoa hồng ước tính của cộng tác mở",
+    "Affiliate refunded GMV": "GMV đã hoàn tiền từ liên kết",
+    "Items refunded": "Mặt hàng từ liên kết đã hoàn tiền",
+    "Linked followers": "Người theo dõi của liên kết",
+    "Affiliate linked product showcase": "Trang trưng bày sản phẩm liên kết",
+}
+
 
 def _apply_column_aliases(df: pd.DataFrame, aliases: dict[str, str]) -> pd.DataFrame:
     """Đổi tên cột alias → tên chuẩn (export TikTok đổi tên theo thời gian)."""
@@ -270,6 +298,17 @@ def _is_affiliate_product_columns(cols: set[str]) -> bool:
         and ("ID sản phẩm" in cols or "Mã sản phẩm" in cols)
     )
     return en or vi
+
+
+def _is_affiliate_creator_columns(cols: set[str]) -> bool:
+    """Nhận diện Creator List — không phải video/product."""
+    if _is_affiliate_video_columns(cols):
+        return False
+    if "Product ID" in cols or "ID sản phẩm" in cols or "Mã sản phẩm" in cols:
+        return False
+    vi = "Tên người dùng của nhà sáng tạo" in cols and "GMV liên kết" in cols
+    en = "Creator username" in cols and "Affiliate GMV" in cols
+    return vi or en
 
 
 def _row_to_dict(row: pd.Series, mapping: dict[str, str], transforms: dict[str, Any]) -> dict:
@@ -316,9 +355,8 @@ def detect_source_type(filename: str, content: bytes) -> str:
                 return "tiktok_affiliate_video"
             if _is_affiliate_product_columns(cols):
                 return "tiktok_affiliate_product"
-            if "Tên người dùng của nhà sáng tạo" in cols and "GMV liên kết" in cols:
-                if "Tên video" not in cols and "Video name" not in cols:
-                    return "tiktok_affiliate_creator"
+            if _is_affiliate_creator_columns(cols):
+                return "tiktok_affiliate_creator"
         except Exception:
             pass
 
@@ -530,6 +568,7 @@ AFFILIATE_CREATOR_TRANSFORMS["ctr"] = _PCT
 def parse_tiktok_affiliate_creator(content: bytes) -> list[dict]:
     df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
     df = _normalize_columns(df)
+    df = _apply_column_aliases(df, AFFILIATE_CREATOR_ALIASES)
     rows = []
     for _, row in df.iterrows():
         if clean_value(row.get("Tên người dùng của nhà sáng tạo")) is None:

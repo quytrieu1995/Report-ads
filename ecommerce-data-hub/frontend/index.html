@@ -1100,7 +1100,11 @@
 
       if (!d.total) {
         sumEl.innerHTML = ''
-        el.innerHTML = '<div class="empty">Chưa có dữ liệu affiliate</div>'
+        const dateActive = state.dateFilter.preset !== 'all'
+        const hint = dateActive
+          ? 'Không có KOC trong khoảng thời gian đã chọn. Video affiliate lọc theo <em>ngày đăng</em>; Creator List lọc theo kỳ trong tên file. Thử chọn <strong>Tất cả</strong>.'
+          : 'Chưa có dữ liệu KOC. Upload <strong>Creator List</strong> hoặc <strong>Creator Video List</strong> (.xlsx) từ TikTok Affiliate.'
+        el.innerHTML = `<div class="empty">${hint}</div>`
         renderToolbar('affiliate-toolbar', key)
         renderPager('affiliate-pager', key)
         return
