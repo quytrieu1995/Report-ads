@@ -256,6 +256,61 @@ def test_real_video():
     print("✓ Real creator video OK")
 
 
+def test_real_video_english_schema():
+    """Creator Video List — cột tiếng Anh (export 2026)."""
+    videos = pd.DataFrame([
+        {
+            "Video name": "Săn ngay combo 6 LON NGHỆ GẠO LỨT...",
+            "Video post date": "2026-03-28",
+            "Creator username": "songkhoemoingay._",
+            "Shoppable video comments": 10,
+            "Shoppable video likes": 645,
+            "Affiliate orders": 357,
+            "Affiliate items sold": 367,
+            "Shoppable video avg. order value": 839409,
+            "GMV": 313663156,
+            "Affiliate shoppable video GMV": 299669037,
+            "Est. commission": 1747584,
+            "Est. flat fee": "--",
+            "Avg. affiliate customers": 11,
+            "Affiliate items refunded": 134,
+            "Affiliate refunded GMV": 119097687,
+            "Shoppable video impressions": 2805923,
+            "Affiliate CTR": "1%",
+            "Shoppable video GPM": 98385,
+        },
+        {
+            "Video name": "DEAL SỐC COMBO 6 LON...",
+            "Video post date": "2026-02-03",
+            "Creator username": "songkhoemoingay._",
+            "Affiliate orders": 138,
+            "GMV": 109917051,
+            "Affiliate shoppable video GMV": 110218735,
+            "Affiliate CTR": "1%",
+        },
+    ])
+    content = _to_xlsx(videos, REAL / "Creator_Video_List_en.xlsx")
+    assert detect_source_type("Creator_Video_List.xlsx", content) == "tiktok_affiliate_video"
+    rows = parse_tiktok_affiliate_video(content)
+    assert len(rows) == 2
+
+    top = rows[0]
+    assert top["creator_username"] == "songkhoemoingay._"
+    assert str(top["posted_date"]) == "2026-03-28"
+    assert top["linked_orders"] == 357.0
+    assert top["items_sold"] == 367.0
+    assert top["gmv"] == 313663156.0
+    assert top["gmv_video"] == 299669037.0
+    assert top["estimated_commission"] == 1747584.0
+    assert top["estimated_flat_fee"] is None
+    assert top["shoppable_impressions"] == 2805923.0
+    assert top["linked_ctr"] == 1.0
+    assert top["shoppable_gpm"] == 98385.0
+    assert top["refunded_items"] == 134.0
+    assert top["gmv_refunded"] == 119097687.0
+    print("✓ Real creator video (English columns) OK")
+
+
 def test_helpers():
     assert parse_datetime_tiktok("2026-05-17 05:30").year == 2026
     assert str(parse_date_flexible("2026-04-03")) == "2026-04-03"
@@ -269,4 +324,5 @@ if __name__ == "__main__":
     test_real_creative()
     test_real_creator()
     test_real_video()
+    test_real_video_english_schema()
     print("\n✓ All real export tests passed")

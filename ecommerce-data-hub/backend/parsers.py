@@ -212,6 +212,27 @@ AD_CREATIVE_ALIASES = {
     "Mẫu quảng cáo": "Tiêu đề video",
 }
 
+# Creator Video List — export tiếng Anh (2026)
+AFFILIATE_VIDEO_ALIASES = {
+    "Video name": "Tên video",
+    "Video post date": "Ngày đăng video",
+    "Creator username": "Tên người dùng của nhà sáng tạo",
+    "Shoppable video comments": "Bình luận của video link bán hàng",
+    "Shoppable video likes": "Lượt thích của video link bán hàng",
+    "Affiliate orders": "Đơn hàng liên kết",
+    "Affiliate items sold": "Số món bán ra qua liên kết ",
+    "Shoppable video avg. order value": "Giá trị đơn hàng trung bình của video link bán hàng",
+    "Affiliate shoppable video GMV": "GMV video link bán hàng của liên kết",
+    "Est. commission": "Hoa hồng ước tính",
+    "Est. flat fee": "Phí cố định ước tính",
+    "Avg. affiliate customers": "Khách hàng liên kết trung bình",
+    "Affiliate items refunded": "Mặt hàng từ liên kết đã hoàn tiền",
+    "Affiliate refunded GMV": "GMV đã hoàn tiền từ liên kết",
+    "Shoppable video impressions": "Lượt hiển thị của video link bán hàng",
+    "Affiliate CTR": "CTR của liên kết",
+    "Shoppable video GPM": "GPM của video link bán hàng",
+}
+
 
 def _apply_column_aliases(df: pd.DataFrame, aliases: dict[str, str]) -> pd.DataFrame:
     """Đổi tên cột alias → tên chuẩn (export TikTok đổi tên theo thời gian)."""
@@ -227,6 +248,13 @@ def _is_ad_creative_columns(cols: set[str]) -> bool:
     has_type = "Loại nội dung sáng tạo" in cols
     has_title = "Tiêu đề video" in cols or "Mẫu quảng cáo" in cols
     return has_id and has_type and has_title
+
+
+def _is_affiliate_video_columns(cols: set[str]) -> bool:
+    """Nhận diện Creator Video List — tiếng Việt hoặc tiếng Anh."""
+    vi = "Tên video" in cols and "Tên người dùng của nhà sáng tạo" in cols
+    en = "Video name" in cols and "Creator username" in cols
+    return vi or en
 
 
 def _row_to_dict(row: pd.Series, mapping: dict[str, str], transforms: dict[str, Any]) -> dict:
@@ -269,7 +297,7 @@ def detect_source_type(filename: str, content: bytes) -> str:
                 return "shopee_shop"
             if _is_ad_creative_columns(cols):
                 return "tiktok_ad_creative"
-            if "Tên video" in cols and "Tên người dùng của nhà sáng tạo" in cols:
+            if _is_affiliate_video_columns(cols):
                 return "tiktok_affiliate_video"
             if "Tên người dùng của nhà sáng tạo" in cols and "GMV liên kết" in cols:
                 if "Tên video" not in cols:
@@ -531,6 +559,7 @@ AFFILIATE_VIDEO_TRANSFORMS["linked_ctr"] = _PCT
 def parse_tiktok_affiliate_video(content: bytes) -> list[dict]:
     df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
     df = _normalize_columns(df)
+    df = _apply_column_aliases(df, AFFILIATE_VIDEO_ALIASES)
     # Cột có thể có/không dấu cách cuối
     for col in list(df.columns):
         if col.strip() == "Số món bán ra qua liên kết":
