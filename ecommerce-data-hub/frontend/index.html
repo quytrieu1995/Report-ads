@@ -144,6 +144,95 @@
     .status-badge.failed { background: #2a1010; color: var(--danger); }
     .status-badge.duplicate, .status-badge.pending { background: #2a2510; color: var(--warning); }
     .empty { color: var(--text-dim); font-size: 0.85rem; padding: 1rem; text-align: center; }
+    .tab-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .tab-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+    .tab-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+    .tab-btn.active { background: #0f2a18; border-color: var(--accent); color: var(--accent); }
+    .btn-detail {
+      background: transparent;
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      padding: 0.25rem 0.55rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .btn-detail:hover { background: var(--accent); color: #0a0f0a; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover td { background: #0f1a0f; }
+    .affiliate-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .affiliate-summary span { font-family: var(--mono); color: var(--accent); }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 960px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 { color: var(--accent); font-size: 1rem; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--danger); }
+    .modal-body { overflow-y: auto; padding: 1rem 1.25rem 1.5rem; }
+    .modal-kpi {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .modal-kpi div {
+      background: #0d150d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem;
+    }
+    .modal-kpi label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
+    .modal-kpi strong { display: block; font-family: var(--mono); color: var(--accent); margin-top: 0.2rem; }
+    .video-title { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -188,10 +277,35 @@
     </section>
 
     <section>
+      <h2>Báo cáo Affiliate</h2>
+      <div class="tab-row" id="affiliate-tabs" role="tablist" aria-label="Sắp xếp báo cáo affiliate">
+        <button type="button" class="tab-btn active" data-sort="gmv" role="tab" aria-selected="true">Top GMV</button>
+        <button type="button" class="tab-btn" data-sort="views" role="tab">Top Lượt xem</button>
+        <button type="button" class="tab-btn" data-sort="roi" role="tab">Top ROI</button>
+        <button type="button" class="tab-btn" data-sort="avg_ad_cost" role="tab">Chi phí QC TB</button>
+        <button type="button" class="tab-btn" data-sort="orders" role="tab">Top Đơn hàng</button>
+      </div>
+      <div class="affiliate-summary" id="affiliate-summary"></div>
+      <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
+    </section>
+
+    <section>
       <h2>Lịch sử upload</h2>
       <div id="batch-history"><div class="empty">Chưa có upload nào</div></div>
     </section>
   </main>
+
+  <div class="modal-overlay" id="creator-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Chi tiết Creator</h3>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <div class="empty">Đang tải...</div>
+      </div>
+    </div>
+  </div>
 
   <script>
     const API = location.origin
@@ -330,6 +444,128 @@
       drawLineChart(d.daily)
     }
 
+    const formatRoi = (n) => (n == null || isNaN(n)) ? '—' : n.toFixed(2) + 'x'
+
+    let affiliateSort = 'gmv'
+
+    // --- Affiliate report ---
+    const loadAffiliateReport = async () => {
+      const res = await fetch(`${API}/api/report/affiliate?sort=${affiliateSort}&limit=20`)
+      const d = await res.json()
+      const sumEl = document.getElementById('affiliate-summary')
+      const el = document.getElementById('affiliate-report')
+
+      if (!d.creators.length) {
+        sumEl.innerHTML = ''
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu affiliate — upload Creator_List và Creator_Video_List</div>'
+        return
+      }
+
+      sumEl.innerHTML = `
+        Tổng creator: <span>${formatNum(d.summary.total_creators)}</span> ·
+        GMV: <span>${formatVND(d.summary.total_gmv)}</span> ·
+        Lượt xem: <span>${formatNum(d.summary.total_views)}</span> ·
+        Chi phí QC TB: <span>${d.summary.avg_ad_cost != null ? formatVND(d.summary.avg_ad_cost) : '—'}</span>
+      `
+
+      el.innerHTML = `<table><thead><tr>
+        <th>#</th><th>Creator</th><th>GMV</th><th>Lượt xem</th><th>ROI</th>
+        <th>Chi phí QC TB</th><th>Đơn</th><th>Video</th><th></th>
+      </tr></thead><tbody>
+        ${d.creators.map((c, i) => `<tr class="clickable" data-creator="${encodeURIComponent(c.creator_username)}">
+          <td class="num">${i + 1}</td>
+          <td>${c.creator_username || '—'}</td>
+          <td class="num">${formatVND(c.gmv)}</td>
+          <td class="num">${formatNum(c.views)}</td>
+          <td class="num">${formatRoi(c.roi)}</td>
+          <td class="num">${c.avg_ad_cost != null ? formatVND(c.avg_ad_cost) : '—'}</td>
+          <td class="num">${formatNum(c.orders)}</td>
+          <td class="num">${formatNum(c.video_count)}</td>
+          <td><button type="button" class="btn-detail" data-creator="${encodeURIComponent(c.creator_username)}">Chi tiết</button></td>
+        </tr>`).join('')}
+      </tbody></table>`
+
+      el.querySelectorAll('tr.clickable').forEach(row => {
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-detail')) return
+          openCreatorDetail(decodeURIComponent(row.dataset.creator))
+        })
+      })
+      el.querySelectorAll('.btn-detail').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          openCreatorDetail(decodeURIComponent(btn.dataset.creator))
+        })
+      })
+    }
+
+    document.getElementById('affiliate-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn')
+      if (!btn) return
+      affiliateSort = btn.dataset.sort
+      document.querySelectorAll('#affiliate-tabs .tab-btn').forEach(b => {
+        b.classList.toggle('active', b === btn)
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false')
+      })
+      loadAffiliateReport()
+    })
+
+    const creatorModal = document.getElementById('creator-modal')
+    const modalBody = document.getElementById('modal-body')
+    const modalTitle = document.getElementById('modal-title')
+
+    const closeModal = () => {
+      creatorModal.classList.remove('open')
+      modalBody.innerHTML = ''
+    }
+
+    document.getElementById('modal-close').addEventListener('click', closeModal)
+    creatorModal.addEventListener('click', (e) => { if (e.target === creatorModal) closeModal() })
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal() })
+
+    const openCreatorDetail = async (username) => {
+      creatorModal.classList.add('open')
+      modalTitle.textContent = `@${username}`
+      modalBody.innerHTML = '<div class="empty">Đang tải video...</div>'
+
+      const res = await fetch(`${API}/api/report/affiliate/${encodeURIComponent(username)}/videos?sort=gmv&limit=50`)
+      if (!res.ok) {
+        modalBody.innerHTML = '<div class="empty">Không tìm thấy dữ liệu video</div>'
+        return
+      }
+      const d = await res.json()
+      const s = d.summary
+
+      modalBody.innerHTML = `
+        <div class="modal-kpi">
+          <div><label>GMV</label><strong>${formatVND(s.gmv)}</strong></div>
+          <div><label>Lượt xem</label><strong>${formatNum(s.views)}</strong></div>
+          <div><label>ROI</label><strong>${formatRoi(s.roi)}</strong></div>
+          <div><label>Chi phí QC</label><strong>${s.ad_cost_total ? formatVND(s.ad_cost_total) : '—'}</strong></div>
+          <div><label>QC TB/video</label><strong>${s.avg_ad_cost != null ? formatVND(s.avg_ad_cost) : '—'}</strong></div>
+          <div><label>Đơn hàng</label><strong>${formatNum(s.orders)}</strong></div>
+          <div><label>Hoa hồng</label><strong>${formatVND(s.commission)}</strong></div>
+          <div><label>Followers</label><strong>${formatNum(s.followers)}</strong></div>
+        </div>
+        ${s.ad_account ? `<p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Tài khoản QC khớp: ${s.ad_account}</p>` : ''}
+        <h2 style="margin-bottom:0.5rem">Video affiliate (${d.videos.length})</h2>
+        ${d.videos.length ? `<table><thead><tr>
+          <th>Tên video</th><th>Ngày</th><th>GMV</th><th>View</th><th>Đơn</th><th>ROI</th><th>CTR</th><th>GPM</th>
+        </tr></thead><tbody>
+          ${d.videos.map(v => `<tr>
+            <td class="video-title" title="${(v.video_name || '').replace(/"/g, '&quot;')}">${v.video_name || '—'}</td>
+            <td>${v.posted_date || '—'}</td>
+            <td class="num">${formatVND(v.gmv)}</td>
+            <td class="num">${formatNum(v.views)}</td>
+            <td class="num">${formatNum(v.orders)}</td>
+            <td class="num">${formatRoi(v.roi)}</td>
+            <td class="num">${v.ctr != null ? v.ctr + '%' : '—'}</td>
+            <td class="num">${formatNum(v.gpm)}</td>
+          </tr>`).join('')}
+        </tbody></table>` : '<div class="empty">Creator chưa có dữ liệu video chi tiết</div>'}
+      `
+    }
+
     // --- Batch history ---
     const handleDeleteBatch = async (id) => {
       if (!confirm(`Xoá batch #${id} và toàn bộ dữ liệu liên quan?`)) return
@@ -360,6 +596,7 @@
       loadTopProducts()
       loadTopCreators()
       loadShopeeDaily()
+      loadAffiliateReport()
       loadBatches()
     }
 

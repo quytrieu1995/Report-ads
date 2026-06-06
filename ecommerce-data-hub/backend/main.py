@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 import models
 from database import Base, engine, get_db
 from ingest import delete_batch, ingest_file
+from reports.affiliate import get_affiliate_report, get_creator_videos
 
 # Tạo bảng lúc startup
 Base.metadata.create_all(bind=engine)
@@ -227,3 +228,36 @@ def shopee_daily(order_type: str = "placed", db: Session = Depends(get_db)):
             for r in rows
         ]
     }
+
+
+@app.get("/api/report/affiliate")
+def affiliate_report(
+    sort: str = "gmv",
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    """
+    Báo cáo Affiliate — xếp hạng creator.
+    sort: gmv | views | roi | avg_ad_cost | orders
+    """
+    allowed = {"gmv", "views", "roi", "avg_ad_cost", "orders"}
+    if sort not in allowed:
+        raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
+    return get_affiliate_report(db, sort=sort, limit=min(limit, 100))
+
+
+@app.get("/api/report/affiliate/{creator_username}/videos")
+def affiliate_creator_videos(
+    creator_username: str,
+    sort: str = "gmv",
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Chi tiết video affiliate của một creator."""
+    allowed = {"gmv", "views", "roi", "orders"}
+    if sort not in allowed:
+        raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
+    result = get_creator_videos(db, creator_username, sort=sort, limit=min(limit, 200))
+    if not result["videos"] and not result["summary"]["gmv"]:
+        raise HTTPException(404, f"Không tìm thấy creator: {creator_username}")
+    return result
