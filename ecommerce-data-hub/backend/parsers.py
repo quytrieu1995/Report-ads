@@ -257,6 +257,21 @@ def _is_affiliate_video_columns(cols: set[str]) -> bool:
     return vi or en
 
 
+def _is_affiliate_product_columns(cols: set[str]) -> bool:
+    """Nhận diện Creator Product List — không có creator/video."""
+    if "Tên người dùng của nhà sáng tạo" in cols or "Creator username" in cols:
+        return False
+    if "Tên video" in cols or "Video name" in cols:
+        return False
+    en = "Product ID" in cols and "Product name" in cols and "Affiliate GMV" in cols
+    vi = (
+        "Tên sản phẩm" in cols
+        and "GMV liên kết" in cols
+        and ("ID sản phẩm" in cols or "Mã sản phẩm" in cols)
+    )
+    return en or vi
+
+
 def _row_to_dict(row: pd.Series, mapping: dict[str, str], transforms: dict[str, Any]) -> dict:
     """Map cột gốc → snake_case và áp transform."""
     out: dict[str, Any] = {}
@@ -299,8 +314,10 @@ def detect_source_type(filename: str, content: bytes) -> str:
                 return "tiktok_ad_creative"
             if _is_affiliate_video_columns(cols):
                 return "tiktok_affiliate_video"
+            if _is_affiliate_product_columns(cols):
+                return "tiktok_affiliate_product"
             if "Tên người dùng của nhà sáng tạo" in cols and "GMV liên kết" in cols:
-                if "Tên video" not in cols:
+                if "Tên video" not in cols and "Video name" not in cols:
                     return "tiktok_affiliate_creator"
         except Exception:
             pass
@@ -573,6 +590,75 @@ def parse_tiktok_affiliate_video(content: bytes) -> list[dict]:
     return rows
 
 
+# Creator Product List — export tiếng Anh / Việt
+AFFILIATE_PRODUCT_ALIASES = {
+    "Product ID": "ID sản phẩm",
+    "Product name": "Tên sản phẩm",
+    "Affiliate GMV": "GMV liên kết",
+    "Est. commission": "Hoa hồng ước tính",
+    "Avg. GMV per customer": "GMV trung bình mỗi khách hàng liên kết",
+    "Affiliate orders": "Đơn hàng liên kết",
+    "Affiliate items sold": "Số món bán ra qua liên kết ",
+    "Items sold": "Số món bán ra qua liên kết ",
+    "Avg. affiliate customers": "Khách hàng liên kết trung bình",
+    "Product impressions": "Lượt hiển thị sản phẩm",
+    "CTR": "CTR",
+    "GPM": "GPM",
+    "Product clicks": "Lượt nhấp sản phẩm",
+    "Affiliate refunded GMV": "GMV đã hoàn tiền từ liên kết",
+    "Items refunded": "Mặt hàng từ liên kết đã hoàn tiền",
+    "Affiliate shoppable videos": "Video link bán hàng liên kết",
+    "Affiliate LIVE streams": "Phiên LIVE liên kết",
+}
+
+AFFILIATE_PRODUCT_MAP = {
+    "ID sản phẩm": "product_id",
+    "Mã sản phẩm": "product_id",
+    "Tên sản phẩm": "product_name",
+    "GMV liên kết": "affiliate_gmv",
+    "Hoa hồng ước tính": "estimated_commission",
+    "GMV trung bình mỗi khách hàng liên kết": "avg_gmv_per_customer",
+    "Đơn hàng liên kết": "affiliate_orders",
+    "Số món bán ra qua liên kết ": "items_sold",
+    "Khách hàng liên kết trung bình": "avg_affiliate_customers",
+    "Lượt hiển thị sản phẩm": "product_impressions",
+    "CTR": "ctr",
+    "GPM": "gpm",
+    "Lượt nhấp sản phẩm": "product_clicks",
+    "GMV đã hoàn tiền từ liên kết": "gmv_refunded",
+    "Mặt hàng từ liên kết đã hoàn tiền": "items_refunded",
+    "Video link bán hàng liên kết": "shoppable_videos",
+    "Phiên LIVE liên kết": "live_streams",
+}
+
+AFFILIATE_PRODUCT_TRANSFORMS = {
+    k: _NUM
+    for k in AFFILIATE_PRODUCT_MAP.values()
+    if k not in ("product_id", "product_name")
+}
+AFFILIATE_PRODUCT_TRANSFORMS["product_id"] = parse_id_string
+AFFILIATE_PRODUCT_TRANSFORMS["ctr"] = _PCT
+
+
+def parse_tiktok_affiliate_product(content: bytes) -> list[dict]:
+    df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
+    df = _normalize_columns(df)
+    df = _apply_column_aliases(df, AFFILIATE_PRODUCT_ALIASES)
+    for col in list(df.columns):
+        if col.strip() == "Số món bán ra qua liên kết":
+            if col != "Số món bán ra qua liên kết ":
+                df = df.rename(columns={col: "Số món bán ra qua liên kết "})
+    rows = []
+    for _, row in df.iterrows():
+        pid = parse_id_string(row.get("ID sản phẩm") or row.get("Mã sản phẩm"))
+        if pid is None:
+            continue
+        rec = _row_to_dict(row, AFFILIATE_PRODUCT_MAP, AFFILIATE_PRODUCT_TRANSFORMS)
+        rec["product_id"] = pid
+        rows.append(rec)
+    return rows
+
+
 # Shopee sheet mapping
 SHOPEE_DAILY_SHEETS = {
     "Đơn hàng đã đặt": "placed",
@@ -714,6 +800,7 @@ PLATFORM_MAP = {
     "tiktok_ad_creative": "tiktok",
     "tiktok_affiliate_creator": "tiktok",
     "tiktok_affiliate_video": "tiktok",
+    "tiktok_affiliate_product": "tiktok",
     "shopee_shop": "shopee",
 }
 
@@ -722,6 +809,7 @@ PARSERS = {
     "tiktok_ad_creative": parse_tiktok_ad_creative,
     "tiktok_affiliate_creator": parse_tiktok_affiliate_creator,
     "tiktok_affiliate_video": parse_tiktok_affiliate_video,
+    "tiktok_affiliate_product": parse_tiktok_affiliate_product,
     "shopee_shop": parse_shopee_shop,
 }
 

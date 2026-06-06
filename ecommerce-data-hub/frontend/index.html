@@ -358,6 +358,44 @@
       margin-bottom: 0.5rem;
     }
     .chart-legend span { font-family: var(--mono); color: var(--accent); }
+    .report-subsection {
+      margin-top: 1.25rem;
+      padding: 1rem 1.1rem;
+      background: #0a120a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .report-subsection:first-of-type { margin-top: 0.75rem; }
+    .subsection-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .subsection-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .subsection-badge {
+      font-size: 0.65rem;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--mono);
+    }
   </style>
 </head>
 <body>
@@ -410,19 +448,68 @@
 
         <div class="report-block">
           <h2>Báo cáo Affiliate</h2>
-          <div class="tab-row" id="affiliate-tabs" role="tablist">
-            <button type="button" class="tab-btn active" data-sort="gmv">Top GMV</button>
-            <button type="button" class="tab-btn" data-sort="views">Top Lượt xem</button>
-            <button type="button" class="tab-btn" data-sort="roi">Top ROI</button>
-            <button type="button" class="tab-btn" data-sort="avg_ad_cost">Chi phí QC TB</button>
-            <button type="button" class="tab-btn" data-sort="orders">Top Đơn hàng</button>
+
+          <div class="report-subsection" aria-labelledby="affiliate-chart-title">
+            <h3 class="subsection-title" id="affiliate-chart-title">
+              Biểu đồ xu hướng
+              <span class="subsection-badge">Area chart</span>
+            </h3>
+            <div class="tab-row" id="affiliate-chart-tabs" role="tablist" aria-label="Chỉ số biểu đồ">
+              <button type="button" class="tab-btn active" data-metric="gmv" aria-selected="true">GMV</button>
+              <button type="button" class="tab-btn" data-metric="views">Lượt xem</button>
+              <button type="button" class="tab-btn" data-metric="orders">Đơn hàng</button>
+            </div>
+            <div class="chart-legend" id="affiliate-trend-legend"></div>
+            <div class="chart-wrap" id="affiliate-trend-chart"><div class="empty">Chưa có dữ liệu affiliate</div></div>
           </div>
-          <div class="affiliate-summary" id="affiliate-summary"></div>
-          <div class="chart-legend" id="affiliate-trend-legend"></div>
-          <div class="chart-wrap" id="affiliate-trend-chart"><div class="empty">Chưa có dữ liệu affiliate</div></div>
-          <div id="affiliate-toolbar"></div>
-          <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
-          <div id="affiliate-pager"></div>
+
+          <div class="report-subsection" aria-labelledby="affiliate-table-title">
+            <h3 class="subsection-title" id="affiliate-table-title">
+              Bảng xếp hạng Creator
+              <span class="subsection-badge">Table</span>
+            </h3>
+            <div class="tab-row" id="affiliate-tabs" role="tablist" aria-label="Sắp xếp bảng creator">
+              <button type="button" class="tab-btn active" data-sort="gmv">Top GMV</button>
+              <button type="button" class="tab-btn" data-sort="views">Top Lượt xem</button>
+              <button type="button" class="tab-btn" data-sort="roi">Top ROI</button>
+              <button type="button" class="tab-btn" data-sort="avg_ad_cost">Chi phí QC TB</button>
+              <button type="button" class="tab-btn" data-sort="orders">Top Đơn hàng</button>
+            </div>
+            <div class="affiliate-summary" id="affiliate-summary"></div>
+            <div id="affiliate-toolbar"></div>
+            <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
+            <div id="affiliate-pager"></div>
+          </div>
+        </div>
+
+        <div class="report-block">
+          <h2>Sản phẩm Affiliate</h2>
+
+          <div class="report-subsection" aria-labelledby="affiliate-product-chart-title">
+            <h3 class="subsection-title" id="affiliate-product-chart-title">
+              Biểu đồ Top sản phẩm
+              <span class="subsection-badge">Bar chart</span>
+            </h3>
+            <div class="chart-legend" id="affiliate-product-chart-legend"></div>
+            <div class="chart-wrap" id="affiliate-product-chart"><div class="empty">Chưa có dữ liệu sản phẩm affiliate</div></div>
+          </div>
+
+          <div class="report-subsection" aria-labelledby="affiliate-product-table-title">
+            <h3 class="subsection-title" id="affiliate-product-table-title">
+              Bảng sản phẩm
+              <span class="subsection-badge">Table</span>
+            </h3>
+            <div class="tab-row" id="affiliate-product-tabs" role="tablist" aria-label="Sắp xếp bảng sản phẩm">
+              <button type="button" class="tab-btn active" data-sort="gmv">Top GMV</button>
+              <button type="button" class="tab-btn" data-sort="orders">Top Đơn</button>
+              <button type="button" class="tab-btn" data-sort="commission">Hoa hồng</button>
+              <button type="button" class="tab-btn" data-sort="impressions">Hiển thị</button>
+              <button type="button" class="tab-btn" data-sort="videos">Video</button>
+            </div>
+            <div id="affiliate-products-toolbar"></div>
+            <div id="affiliate-products"><div class="empty">Chưa có dữ liệu sản phẩm affiliate</div></div>
+            <div id="affiliate-products-pager"></div>
+          </div>
         </div>
       </div>
 
@@ -527,10 +614,15 @@
     const state = {
       platform: 'tiktok',
       affiliateSort: 'gmv',
+      affiliateProductSort: 'gmv',
+      affiliateChartMetric: 'gmv',
+      affiliateTrendData: null,
+      affiliateProductChartData: null,
       dateFilter: { preset: 'all', dateFrom: '', dateTo: '' },
       tables: {
         tiktokProducts: { page: 1, pageSize: 20, total: 0 },
         affiliate: { page: 1, pageSize: 20, total: 0 },
+        affiliateProducts: { page: 1, pageSize: 20, total: 0 },
         shopeeDaily: { page: 1, pageSize: 20, total: 0 },
         shopeeProducts: { page: 1, pageSize: 20, total: 0 },
         batches: { page: 1, pageSize: 20, total: 0 },
@@ -663,6 +755,7 @@
       const map = {
         tiktokProducts: loadTiktokProducts,
         affiliate: loadAffiliateReport,
+        affiliateProducts: loadAffiliateProducts,
         shopeeDaily: loadShopeeDailyTable,
         shopeeProducts: loadShopeeProducts,
         batches: loadBatches,
@@ -696,6 +789,7 @@
         <div class="kpi-card"><div class="kpi-label">ROI Quảng cáo</div><div class="kpi-value">${d.tiktok.ad_roi}x</div><div class="kpi-sub">${formatVND(d.tiktok.ad_revenue)} / ${formatVND(d.tiktok.ad_cost)}</div></div>
         <div class="kpi-card"><div class="kpi-label">Affiliate Creators</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_creators)}</div></div>
         <div class="kpi-card"><div class="kpi-label">Affiliate Videos</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_videos)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">SP Affiliate</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_products)}</div></div>
         <div class="kpi-card"><div class="kpi-label">Tỉ giá USD/VND</div><div class="kpi-value">${d.exchange_rate ? formatNum(d.exchange_rate.rate) : '—'}</div><div class="kpi-sub">${d.exchange_rate ? d.exchange_rate.source : ''}</div></div>
       `
       document.getElementById('shopee-kpi').innerHTML = `
@@ -732,14 +826,35 @@
     const loadAffiliateTrend = async () => {
       const res = await fetch(`${API}/api/report/affiliate-trend?${buildQuery()}`)
       const d = await res.json()
+      state.affiliateTrendData = d
+      renderAffiliateTrendChart()
+    }
+
+    const renderAffiliateTrendChart = () => {
+      const d = state.affiliateTrendData
+      const metric = state.affiliateChartMetric
       const legend = document.getElementById('affiliate-trend-legend')
-      if (d.totals && d.daily?.length) {
-        legend.innerHTML = `GMV: <span>${formatVND(d.totals.gmv)}</span> · View: <span>${formatNum(d.totals.views)}</span> · Đơn: <span>${formatNum(d.totals.orders)}</span>`
+      const colors = { gmv: '#3ddc84', views: '#5eb8ff', orders: '#ffb347' }
+      const labels = { gmv: 'GMV', views: 'Lượt xem', orders: 'Đơn hàng' }
+      if (d?.totals && d.daily?.length) {
+        legend.innerHTML = `${labels.gmv}: <span>${formatVND(d.totals.gmv)}</span> · ${labels.views}: <span>${formatNum(d.totals.views)}</span> · ${labels.orders}: <span>${formatNum(d.totals.orders)}</span>`
       } else {
         legend.innerHTML = ''
       }
-      drawAreaChart('affiliate-trend-chart', d.daily || [], 'gmv', '#3ddc84')
+      drawAreaChart('affiliate-trend-chart', d?.daily || [], metric, colors[metric] || '#3ddc84', metric === 'gmv')
     }
+
+    document.getElementById('affiliate-chart-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn')
+      if (!btn) return
+      state.affiliateChartMetric = btn.dataset.metric
+      document.querySelectorAll('#affiliate-chart-tabs .tab-btn').forEach(b => {
+        const on = b === btn
+        b.classList.toggle('active', on)
+        b.setAttribute('aria-selected', on ? 'true' : 'false')
+      })
+      renderAffiliateTrendChart()
+    })
 
     const loadAffiliateReport = async () => {
       const key = 'affiliate'
@@ -801,13 +916,77 @@
       loadAffiliateReport()
     })
 
-    const drawAreaChart = (containerId, points, valueKey, color = '#3ddc84') => {
+    const loadAffiliateProducts = async () => {
+      const key = 'affiliateProducts'
+      const t = state.tables[key]
+      const chartRes = await fetch(`${API}/api/report/affiliate-products?${buildQuery({ sort: state.affiliateProductSort, limit: 10, offset: 0 })}`)
+      const chartData = await chartRes.json()
+      state.affiliateProductChartData = chartData
+      renderAffiliateProductChart()
+
+      const res = await fetch(`${API}/api/report/affiliate-products?${buildQuery({ sort: state.affiliateProductSort, limit: t.pageSize, offset: offsetOf(key) })}`)
+      const d = await res.json()
+      t.total = d.total || 0
+      renderToolbar('affiliate-products-toolbar', key)
+      const el = document.getElementById('affiliate-products')
+      if (!d.products.length) {
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu sản phẩm affiliate</div>'
+      } else {
+        const start = offsetOf(key)
+        el.innerHTML = `<table><thead><tr>
+          <th>#</th><th>Mã SP</th><th>Tên sản phẩm</th><th>GMV</th><th>Hoa hồng</th><th>Đơn</th><th>Hiển thị</th><th>CTR</th><th>GPM</th><th>Video</th>
+        </tr></thead><tbody>
+          ${d.products.map((p, i) => `<tr>
+            <td class="num">${start + i + 1}</td>
+            <td>${p.product_id || '—'}</td>
+            <td>${p.product_name || '—'}</td>
+            <td class="num">${formatVND(p.gmv)}</td>
+            <td class="num">${formatVND(p.commission)}</td>
+            <td class="num">${formatNum(p.orders)}</td>
+            <td class="num">${formatNum(p.impressions)}</td>
+            <td class="num">${p.ctr != null ? p.ctr.toFixed(1) + '%' : '—'}</td>
+            <td class="num">${p.gpm != null ? formatNum(p.gpm) : '—'}</td>
+            <td class="num">${formatNum(p.videos)}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      }
+      renderPager('affiliate-products-pager', key)
+    }
+
+    const renderAffiliateProductChart = () => {
+      const d = state.affiliateProductChartData
+      const legend = document.getElementById('affiliate-product-chart-legend')
+      const products = d?.products || []
+      if (!products.length) {
+        legend.innerHTML = ''
+        document.getElementById('affiliate-product-chart').innerHTML = '<div class="empty">Chưa có dữ liệu sản phẩm affiliate</div>'
+        return
+      }
+      const totalGmv = products.reduce((s, p) => s + (p.gmv || 0), 0)
+      legend.innerHTML = `Top ${products.length} SP · Tổng GMV: <span>${formatVND(totalGmv)}</span>`
+      drawBarChart('affiliate-product-chart', products.map(p => ({
+        label: (p.product_name || p.product_id || '').slice(0, 28),
+        value: p.gmv || 0,
+      })), '#3ddc84')
+    }
+
+    document.getElementById('affiliate-product-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn')
+      if (!btn) return
+      state.affiliateProductSort = btn.dataset.sort
+      state.tables.affiliateProducts.page = 1
+      document.querySelectorAll('#affiliate-product-tabs .tab-btn').forEach(b => b.classList.toggle('active', b === btn))
+      loadAffiliateProducts()
+    })
+
+    const drawAreaChart = (containerId, points, valueKey, color = '#3ddc84', useVnd = true) => {
       const wrap = document.getElementById(containerId)
       if (!wrap) return
       if (!points.length) {
         wrap.innerHTML = '<div class="empty">Chưa có dữ liệu trong khoảng thời gian</div>'
         return
       }
+      const fmtY = useVnd ? formatVND : formatNum
       const W = 800, H = 220, pad = { t: 20, r: 20, b: 40, l: 70 }
       const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b
       const maxY = Math.max(...points.map(p => p[valueKey] || 0), 1)
@@ -821,7 +1000,7 @@
         const v = maxY * i / 4
         const y = toY(v)
         yLabels += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#1e3320"/>`
-        yLabels += `<text x="${pad.l - 8}" y="${y + 4}" fill="#7a9a7e" font-size="10" text-anchor="end" font-family="monospace">${formatVND(v)}</text>`
+        yLabels += `<text x="${pad.l - 8}" y="${y + 4}" fill="#7a9a7e" font-size="10" text-anchor="end" font-family="monospace">${fmtY(v)}</text>`
       }
       const xLabels = points.map((p, i) => {
         if (points.length > 15 && i % 2 !== 0) return ''
@@ -829,6 +1008,32 @@
       }).join('')
       const dots = points.map((p, i) => `<circle cx="${toX(i)}" cy="${toY(p[valueKey] || 0)}" r="3" fill="${color}"/>`).join('')
       wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${yLabels}<path d="${areaD}" fill="${color}20"/><path d="${pathD}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xLabels}</svg>`
+    }
+
+    const drawBarChart = (containerId, items, color = '#3ddc84') => {
+      const wrap = document.getElementById(containerId)
+      if (!wrap) return
+      if (!items.length) {
+        wrap.innerHTML = '<div class="empty">Chưa có dữ liệu</div>'
+        return
+      }
+      const W = 800
+      const rowH = 36
+      const pad = { t: 16, r: 20, b: 16, l: 200 }
+      const H = pad.t + pad.b + items.length * rowH
+      const iw = W - pad.l - pad.r
+      const maxV = Math.max(...items.map(i => i.value), 1)
+      const bars = items.map((item, idx) => {
+        const y = pad.t + idx * rowH + 8
+        const w = (item.value / maxV) * iw
+        const label = item.label.length > 26 ? item.label.slice(0, 25) + '…' : item.label
+        return `
+          <text x="${pad.l - 8}" y="${y + 14}" fill="#9ab09d" font-size="10" text-anchor="end" font-family="sans-serif">${label}</text>
+          <rect x="${pad.l}" y="${y}" width="${w.toFixed(1)}" height="20" rx="3" fill="${color}" opacity="0.85"/>
+          <text x="${(pad.l + w + 6).toFixed(1)}" y="${y + 14}" fill="${color}" font-size="10" font-family="monospace">${formatVND(item.value)}</text>
+        `
+      }).join('')
+      wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`
     }
 
     const drawLineChart = (points) => {
@@ -1022,6 +1227,7 @@
       loadTiktokProducts()
       loadAffiliateTrend()
       loadAffiliateReport()
+      loadAffiliateProducts()
       loadShopeeChart()
       loadShopeeDailyTable()
       loadShopeeProducts()

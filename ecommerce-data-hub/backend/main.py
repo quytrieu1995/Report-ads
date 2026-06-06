@@ -150,6 +150,12 @@ def get_summary(
     affiliate_videos_q = apply_date_filter(affiliate_videos_q, models.TiktokAffiliateVideo.posted_date, d_from, d_to)
     affiliate_videos = affiliate_videos_q.scalar() or 0
 
+    affiliate_products = (
+        db.query(func.count(distinct(models.TiktokAffiliateProduct.product_id)))
+        .filter(models.TiktokAffiliateProduct.product_id.isnot(None))
+        .scalar()
+    ) or 0
+
     shopee_sales_q = (
         db.query(func.coalesce(func.sum(models.ShopeeShopDaily.total_sales), 0))
         .filter(models.ShopeeShopDaily.order_type == "placed")
@@ -181,6 +187,7 @@ def get_summary(
             "ad_roi": float(ad_roi),
             "affiliate_creators": int(affiliate_creators),
             "affiliate_videos": int(affiliate_videos),
+            "affiliate_products": int(affiliate_products),
         },
         "shopee": {
             "sales": float(shopee_sales),
@@ -397,6 +404,75 @@ def affiliate_trend(
     result = get_affiliate_trend(db, date_from=d_from, date_to=d_to)
     result["date_range"] = dr
     return result
+
+
+@app.get("/api/report/affiliate-products")
+def affiliate_products(
+    sort: str = "gmv",
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Top sản phẩm affiliate — gộp theo product_id."""
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    allowed = {"gmv", "orders", "commission", "impressions", "ctr", "gpm", "videos"}
+    if sort not in allowed:
+        raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
+
+    P = models.TiktokAffiliateProduct
+    base = db.query(
+        P.product_id,
+        func.max(P.product_name).label("product_name"),
+        func.sum(P.affiliate_gmv).label("gmv"),
+        func.sum(P.estimated_commission).label("commission"),
+        func.sum(P.affiliate_orders).label("orders"),
+        func.sum(P.items_sold).label("items_sold"),
+        func.sum(P.product_impressions).label("impressions"),
+        func.sum(P.product_clicks).label("clicks"),
+        func.sum(P.shoppable_videos).label("videos"),
+        func.sum(P.live_streams).label("live_streams"),
+        func.sum(P.gmv_refunded).label("gmv_refunded"),
+        func.avg(P.ctr).label("ctr"),
+        func.avg(P.gpm).label("gpm"),
+    ).filter(P.product_id.isnot(None)).group_by(P.product_id)
+
+    sort_map = {
+        "gmv": func.sum(P.affiliate_gmv).desc(),
+        "orders": func.sum(P.affiliate_orders).desc(),
+        "commission": func.sum(P.estimated_commission).desc(),
+        "impressions": func.sum(P.product_impressions).desc(),
+        "ctr": func.avg(P.ctr).desc(),
+        "gpm": func.avg(P.gpm).desc(),
+        "videos": func.sum(P.shoppable_videos).desc(),
+    }
+    subq = base.subquery()
+    total = db.query(func.count()).select_from(subq).scalar() or 0
+    rows = base.order_by(sort_map[sort]).offset(offset).limit(limit).all()
+
+    return {
+        "total": int(total),
+        "offset": offset,
+        "limit": limit,
+        "products": [
+            {
+                "product_id": r.product_id,
+                "product_name": r.product_name,
+                "gmv": float(r.gmv or 0),
+                "commission": float(r.commission or 0),
+                "orders": float(r.orders or 0),
+                "items_sold": float(r.items_sold or 0),
+                "impressions": float(r.impressions or 0),
+                "clicks": float(r.clicks or 0),
+                "videos": float(r.videos or 0),
+                "live_streams": float(r.live_streams or 0),
+                "gmv_refunded": float(r.gmv_refunded or 0),
+                "ctr": float(r.ctr) if r.ctr is not None else None,
+                "gpm": float(r.gpm) if r.gpm is not None else None,
+            }
+            for r in rows
+        ],
+    }
 
 
 @app.get("/api/report/affiliate/{creator_username}/videos")

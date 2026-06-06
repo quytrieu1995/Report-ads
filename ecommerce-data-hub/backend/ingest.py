@@ -20,6 +20,7 @@ MODEL_MAP: dict[str, list[type]] = {
     "tiktok_ad_creative": [models.TiktokAdCreative],
     "tiktok_affiliate_creator": [models.TiktokAffiliateCreator],
     "tiktok_affiliate_video": [models.TiktokAffiliateVideo],
+    "tiktok_affiliate_product": [models.TiktokAffiliateProduct],
     "shopee_shop": [models.ShopeeShopDaily, models.ShopeeProductStat],
 }
 

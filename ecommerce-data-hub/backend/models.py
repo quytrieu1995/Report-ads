@@ -1,4 +1,4 @@
-"""Schema ORM — upload_batch + 6 bảng fact."""
+"""Schema ORM — upload_batch + 7 bảng fact."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -181,6 +181,33 @@ class TiktokAffiliateVideo(Base):
     shoppable_impressions: Mapped[Optional[float]] = mapped_column(Float)
     linked_ctr: Mapped[Optional[float]] = mapped_column(Float)
     shoppable_gpm: Mapped[Optional[float]] = mapped_column(Float)
+
+
+class TiktokAffiliateProduct(Base):
+    """Sản phẩm affiliate TikTok — Creator Product List."""
+
+    __tablename__ = "tiktok_affiliate_product"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    batch_id: Mapped[int] = mapped_column(
+        ForeignKey("upload_batch.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product_id: Mapped[Optional[str]] = mapped_column(String(32), index=True)
+    product_name: Mapped[Optional[str]] = mapped_column(Text)
+    affiliate_gmv: Mapped[Optional[float]] = mapped_column(Float)
+    estimated_commission: Mapped[Optional[float]] = mapped_column(Float)
+    avg_gmv_per_customer: Mapped[Optional[float]] = mapped_column(Float)
+    affiliate_orders: Mapped[Optional[float]] = mapped_column(Float)
+    items_sold: Mapped[Optional[float]] = mapped_column(Float)
+    avg_affiliate_customers: Mapped[Optional[float]] = mapped_column(Float)
+    product_impressions: Mapped[Optional[float]] = mapped_column(Float)
+    ctr: Mapped[Optional[float]] = mapped_column(Float)
+    gpm: Mapped[Optional[float]] = mapped_column(Float)
+    product_clicks: Mapped[Optional[float]] = mapped_column(Float)
+    gmv_refunded: Mapped[Optional[float]] = mapped_column(Float)
+    items_refunded: Mapped[Optional[float]] = mapped_column(Float)
+    shoppable_videos: Mapped[Optional[float]] = mapped_column(Float)
+    live_streams: Mapped[Optional[float]] = mapped_column(Float)
 
 
 class ShopeeShopDaily(Base):

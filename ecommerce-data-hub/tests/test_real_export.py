@@ -16,6 +16,7 @@ from parsers import (
     parse_datetime_tiktok,
     parse_tiktok_ad_creative,
     parse_tiktok_affiliate_creator,
+    parse_tiktok_affiliate_product,
     parse_tiktok_affiliate_video,
     parse_vn_number,
 )
@@ -311,6 +312,61 @@ def test_real_video_english_schema():
     print("✓ Real creator video (English columns) OK")
 
 
+def test_real_affiliate_product_english_schema():
+    """Creator Product List — cột tiếng Anh."""
+    products = pd.DataFrame([
+        {
+            "Product ID": "1734279932259763490",
+            "Product name": "[COMBO 6 TẶNG 1 ] BỘT NGHỆ GẠO LỨT 420g",
+            "Affiliate GMV": 778442972,
+            "Est. commission": 26773270,
+            "Avg. GMV per customer": 820277,
+            "Affiliate orders": 949,
+            "Items sold": 974,
+            "Avg. affiliate customers": 30,
+            "Product impressions": 6192795,
+            "CTR": "1%",
+            "GPM": 125701,
+            "Product clicks": 61375,
+            "Affiliate refunded GMV": 250338328,
+            "Items refunded": 291,
+            "Affiliate shoppable videos": 988,
+            "Affiliate LIVE streams": 0,
+        },
+        {
+            "Product ID": "1734488966355911970",
+            "Product name": "[ Combo 2 Sản Phẩm Tặng 1 sổ tay ] BỘT NGHỆ GẠO LỨT 420g",
+            "Affiliate GMV": 94960060,
+            "Est. commission": 3461221,
+            "Affiliate orders": 313,
+            "Items sold": 320,
+            "CTR": "2%",
+            "GPM": 273376,
+            "Affiliate shoppable videos": 583,
+        },
+    ])
+    content = _to_xlsx(products, REAL / "Creator_Product_List_en.xlsx")
+    assert detect_source_type("Creator_Product_List.xlsx", content) == "tiktok_affiliate_product"
+    rows = parse_tiktok_affiliate_product(content)
+    assert len(rows) == 2
+
+    top = rows[0]
+    assert top["product_id"] == "1734279932259763490"
+    assert top["affiliate_gmv"] == 778442972.0
+    assert top["estimated_commission"] == 26773270.0
+    assert top["affiliate_orders"] == 949.0
+    assert top["items_sold"] == 974.0
+    assert top["product_impressions"] == 6192795.0
+    assert top["ctr"] == 1.0
+    assert top["gpm"] == 125701.0
+    assert top["product_clicks"] == 61375.0
+    assert top["shoppable_videos"] == 988.0
+    assert top["live_streams"] == 0.0
+    assert top["gmv_refunded"] == 250338328.0
+    assert top["items_refunded"] == 291.0
+    print("✓ Real affiliate product (English columns) OK")
+
+
 def test_helpers():
     assert parse_datetime_tiktok("2026-05-17 05:30").year == 2026
     assert str(parse_date_flexible("2026-04-03")) == "2026-04-03"
@@ -325,4 +381,5 @@ if __name__ == "__main__":
     test_real_creator()
     test_real_video()
     test_real_video_english_schema()
+    test_real_affiliate_product_english_schema()
     print("\n✓ All real export tests passed")
