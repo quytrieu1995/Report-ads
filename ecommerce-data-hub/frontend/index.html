@@ -233,6 +233,69 @@
     .modal-kpi label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
     .modal-kpi strong { display: block; font-family: var(--mono); color: var(--accent); margin-top: 0.2rem; }
     .video-title { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .platform-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    .platform-tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-dim);
+      padding: 0.6rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .platform-tab:hover { color: var(--text); }
+    .platform-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .platform-panel { display: none; }
+    .platform-panel.active { display: block; }
+    .report-block { margin-bottom: 2rem; }
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .table-toolbar select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-family: var(--mono);
+      margin: 0 0.25rem;
+    }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.65rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .pagination button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.3rem 0.65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+    .pagination .page-info { font-family: var(--mono); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -252,46 +315,69 @@
     </section>
 
     <section>
-      <h2>Chỉ số tổng hợp</h2>
-      <div class="kpi-grid" id="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Đang tải...</div></div>
+      <h2>Báo cáo</h2>
+      <div class="platform-tabs" role="tablist" aria-label="Chọn nền tảng">
+        <button type="button" class="platform-tab active" data-platform="tiktok" role="tab" aria-selected="true">TikTok Shop</button>
+        <button type="button" class="platform-tab" data-platform="shopee" role="tab">Shopee</button>
       </div>
-    </section>
 
-    <section class="grid-2">
-      <div>
-        <h2>Top sản phẩm TikTok</h2>
-        <div id="top-products"><div class="empty">Chưa có dữ liệu</div></div>
-      </div>
-      <div>
-        <h2>Top nhà sáng tạo Affiliate</h2>
-        <div id="top-creators"><div class="empty">Chưa có dữ liệu</div></div>
-      </div>
-    </section>
+      <!-- TikTok -->
+      <div id="panel-tiktok" class="platform-panel active" role="tabpanel">
+        <div class="kpi-grid" id="tiktok-kpi"></div>
 
-    <section>
-      <h2>Doanh số Shopee theo ngày</h2>
-      <div class="chart-wrap" id="shopee-chart">
-        <div class="empty">Chưa có dữ liệu Shopee</div>
-      </div>
-    </section>
+        <div class="report-block">
+          <h2>Top sản phẩm</h2>
+          <div id="tiktok-products-toolbar"></div>
+          <div id="tiktok-products"><div class="empty">Chưa có dữ liệu</div></div>
+          <div id="tiktok-products-pager"></div>
+        </div>
 
-    <section>
-      <h2>Báo cáo Affiliate</h2>
-      <div class="tab-row" id="affiliate-tabs" role="tablist" aria-label="Sắp xếp báo cáo affiliate">
-        <button type="button" class="tab-btn active" data-sort="gmv" role="tab" aria-selected="true">Top GMV</button>
-        <button type="button" class="tab-btn" data-sort="views" role="tab">Top Lượt xem</button>
-        <button type="button" class="tab-btn" data-sort="roi" role="tab">Top ROI</button>
-        <button type="button" class="tab-btn" data-sort="avg_ad_cost" role="tab">Chi phí QC TB</button>
-        <button type="button" class="tab-btn" data-sort="orders" role="tab">Top Đơn hàng</button>
+        <div class="report-block">
+          <h2>Báo cáo Affiliate</h2>
+          <div class="tab-row" id="affiliate-tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-sort="gmv">Top GMV</button>
+            <button type="button" class="tab-btn" data-sort="views">Top Lượt xem</button>
+            <button type="button" class="tab-btn" data-sort="roi">Top ROI</button>
+            <button type="button" class="tab-btn" data-sort="avg_ad_cost">Chi phí QC TB</button>
+            <button type="button" class="tab-btn" data-sort="orders">Top Đơn hàng</button>
+          </div>
+          <div class="affiliate-summary" id="affiliate-summary"></div>
+          <div id="affiliate-toolbar"></div>
+          <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
+          <div id="affiliate-pager"></div>
+        </div>
       </div>
-      <div class="affiliate-summary" id="affiliate-summary"></div>
-      <div id="affiliate-report"><div class="empty">Chưa có dữ liệu affiliate</div></div>
+
+      <!-- Shopee -->
+      <div id="panel-shopee" class="platform-panel" role="tabpanel">
+        <div class="kpi-grid" id="shopee-kpi"></div>
+
+        <div class="report-block">
+          <h2>Doanh số theo ngày</h2>
+          <div class="chart-wrap" id="shopee-chart"><div class="empty">Chưa có dữ liệu Shopee</div></div>
+        </div>
+
+        <div class="report-block">
+          <h2>Bảng doanh số ngày</h2>
+          <div id="shopee-daily-toolbar"></div>
+          <div id="shopee-daily-table"><div class="empty">Chưa có dữ liệu</div></div>
+          <div id="shopee-daily-pager"></div>
+        </div>
+
+        <div class="report-block">
+          <h2>Top sản phẩm</h2>
+          <div id="shopee-products-toolbar"></div>
+          <div id="shopee-products"><div class="empty">Chưa có dữ liệu</div></div>
+          <div id="shopee-products-pager"></div>
+        </div>
+      </div>
     </section>
 
     <section>
       <h2>Lịch sử upload</h2>
+      <div id="batches-toolbar"></div>
       <div id="batch-history"><div class="empty">Chưa có upload nào</div></div>
+      <div id="batches-pager"></div>
     </section>
   </main>
 
@@ -358,123 +444,175 @@
     })
     fileInput.addEventListener('change', () => handleFiles([...fileInput.files]))
 
-    // --- KPI ---
-    const loadSummary = async () => {
-      const res = await fetch(`${API}/api/summary`)
-      const d = await res.json()
-      const grid = document.getElementById('kpi-grid')
-      grid.innerHTML = `
-        <div class="kpi-card"><div class="kpi-label">TikTok GMV</div><div class="kpi-value">${formatVND(d.tiktok.gmv)}</div><div class="kpi-sub">${formatNum(d.tiktok.orders)} đơn</div></div>
-        <div class="kpi-card"><div class="kpi-label">ROI Quảng cáo</div><div class="kpi-value">${d.tiktok.ad_roi}x</div><div class="kpi-sub">${formatVND(d.tiktok.ad_revenue)} / ${formatVND(d.tiktok.ad_cost)}</div></div>
-        <div class="kpi-card"><div class="kpi-label">Affiliate Creators</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_creators)}</div></div>
-        <div class="kpi-card"><div class="kpi-label">Affiliate Videos</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_videos)}</div></div>
-        <div class="kpi-card"><div class="kpi-label">Shopee Doanh số</div><div class="kpi-value">${formatVND(d.shopee.sales)}</div><div class="kpi-sub">${formatNum(d.shopee.orders)} đơn · ${formatNum(d.shopee.visits)} truy cập</div></div>
-        <div class="kpi-card"><div class="kpi-label">Tỉ giá USD/VND</div><div class="kpi-value">${d.exchange_rate ? formatNum(d.exchange_rate.rate) : '—'}</div><div class="kpi-sub">${d.exchange_rate ? d.exchange_rate.source : ''}</div></div>
-      `
-    }
+    const PAGE_SIZES = [20, 50, 100]
 
-    // --- Top products ---
-    const loadTopProducts = async () => {
-      const res = await fetch(`${API}/api/report/top-products?limit=10`)
-      const d = await res.json()
-      const el = document.getElementById('top-products')
-      if (!d.products.length) { el.innerHTML = '<div class="empty">Chưa có dữ liệu</div>'; return }
-      el.innerHTML = `<table><thead><tr><th>SKU</th><th>Sản phẩm</th><th>Doanh số</th><th>SL</th></tr></thead><tbody>
-        ${d.products.map(p => `<tr><td>${p.seller_sku || '—'}</td><td>${p.product_name || '—'}</td><td class="num">${formatVND(p.total_sales)}</td><td class="num">${formatNum(p.quantity)}</td></tr>`).join('')}
-      </tbody></table>`
-    }
-
-    // --- Top creators ---
-    const loadTopCreators = async () => {
-      const res = await fetch(`${API}/api/report/top-creators?limit=10`)
-      const d = await res.json()
-      const el = document.getElementById('top-creators')
-      if (!d.creators.length) { el.innerHTML = '<div class="empty">Chưa có dữ liệu</div>'; return }
-      el.innerHTML = `<table><thead><tr><th>Creator</th><th>GMV</th><th>Đơn</th></tr></thead><tbody>
-        ${d.creators.map(c => `<tr><td>${c.creator_username || '—'}</td><td class="num">${formatVND(c.gmv)}</td><td class="num">${formatNum(c.orders)}</td></tr>`).join('')}
-      </tbody></table>`
-    }
-
-    // --- Shopee chart (SVG thuần) ---
-    const drawLineChart = (points) => {
-      const wrap = document.getElementById('shopee-chart')
-      if (!points.length) { wrap.innerHTML = '<div class="empty">Chưa có dữ liệu Shopee</div>'; return }
-
-      const W = 800, H = 220, pad = { t: 20, r: 20, b: 40, l: 70 }
-      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b
-      const maxY = Math.max(...points.map(p => p.sales), 1)
-      const xStep = iw / Math.max(points.length - 1, 1)
-
-      const toX = (i) => pad.l + i * xStep
-      const toY = (v) => pad.t + ih - (v / maxY) * ih
-
-      const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.sales).toFixed(1)}`).join(' ')
-      const areaD = pathD + ` L${toX(points.length - 1).toFixed(1)},${(pad.t + ih).toFixed(1)} L${pad.l},${(pad.t + ih).toFixed(1)} Z`
-
-      const yTicks = 4
-      let yLabels = ''
-      for (let i = 0; i <= yTicks; i++) {
-        const v = maxY * i / yTicks
-        const y = toY(v)
-        yLabels += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#1e3320" stroke-width="1"/>`
-        yLabels += `<text x="${pad.l - 8}" y="${y + 4}" fill="#7a9a7e" font-size="10" text-anchor="end" font-family="monospace">${formatVND(v)}</text>`
-      }
-
-      const xLabels = points.map((p, i) => {
-        const label = p.date ? p.date.slice(5) : ''
-        if (points.length > 15 && i % 2 !== 0) return ''
-        return `<text x="${toX(i)}" y="${H - 8}" fill="#7a9a7e" font-size="9" text-anchor="middle" font-family="monospace">${label}</text>`
-      }).join('')
-
-      const dots = points.map((p, i) =>
-        `<circle cx="${toX(i)}" cy="${toY(p.sales)}" r="3" fill="#3ddc84"/>`
-      ).join('')
-
-      wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-        ${yLabels}
-        <path d="${areaD}" fill="#3ddc8420"/>
-        <path d="${pathD}" fill="none" stroke="#3ddc84" stroke-width="2"/>
-        ${dots}
-        ${xLabels}
-      </svg>`
-    }
-
-    const loadShopeeDaily = async () => {
-      const res = await fetch(`${API}/api/report/shopee-daily?order_type=placed`)
-      const d = await res.json()
-      drawLineChart(d.daily)
+    const state = {
+      platform: 'tiktok',
+      affiliateSort: 'gmv',
+      tables: {
+        tiktokProducts: { page: 1, pageSize: 20, total: 0 },
+        affiliate: { page: 1, pageSize: 20, total: 0 },
+        shopeeDaily: { page: 1, pageSize: 20, total: 0 },
+        shopeeProducts: { page: 1, pageSize: 20, total: 0 },
+        batches: { page: 1, pageSize: 20, total: 0 },
+        modalVideos: { page: 1, pageSize: 20, total: 0, username: '' },
+      },
     }
 
     const formatRoi = (n) => (n == null || isNaN(n)) ? '—' : n.toFixed(2) + 'x'
 
-    let affiliateSort = 'gmv'
+    const offsetOf = (key) => {
+      const t = state.tables[key]
+      return (t.page - 1) * t.pageSize
+    }
 
-    // --- Affiliate report ---
-    const loadAffiliateReport = async () => {
-      const res = await fetch(`${API}/api/report/affiliate?sort=${affiliateSort}&limit=20`)
+    const totalPages = (key) => {
+      const t = state.tables[key]
+      return Math.max(1, Math.ceil(t.total / t.pageSize))
+    }
+
+    const renderToolbar = (containerId, tableKey, label = 'Hiển thị') => {
+      const el = document.getElementById(containerId)
+      if (!el) return
+      const t = state.tables[tableKey]
+      el.innerHTML = `
+        <div class="table-toolbar">
+          <label>${label}
+            <select class="page-size-select" data-table="${tableKey}" aria-label="Số dòng mỗi trang">
+              ${PAGE_SIZES.map(n => `<option value="${n}" ${t.pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+            </select> dòng / trang
+          </label>
+          <span>Tổng: <strong style="color:var(--accent);font-family:var(--mono)">${formatNum(t.total)}</strong></span>
+        </div>`
+      el.querySelector('.page-size-select')?.addEventListener('change', (e) => {
+        state.tables[tableKey].pageSize = parseInt(e.target.value, 10)
+        state.tables[tableKey].page = 1
+        reloadTable(tableKey)
+      })
+    }
+
+    const renderPager = (containerId, tableKey) => {
+      const el = document.getElementById(containerId)
+      if (!el) return
+      const t = state.tables[tableKey]
+      const pages = totalPages(tableKey)
+      el.innerHTML = `
+        <div class="pagination">
+          <button type="button" data-table="${tableKey}" data-action="first" ${t.page <= 1 ? 'disabled' : ''}>«</button>
+          <button type="button" data-table="${tableKey}" data-action="prev" ${t.page <= 1 ? 'disabled' : ''}>‹</button>
+          <span class="page-info">${t.page} / ${pages}</span>
+          <button type="button" data-table="${tableKey}" data-action="next" ${t.page >= pages ? 'disabled' : ''}>›</button>
+          <button type="button" data-table="${tableKey}" data-action="last" ${t.page >= pages ? 'disabled' : ''}>»</button>
+        </div>`
+      el.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.table
+          const action = btn.dataset.action
+          const pg = state.tables[key].page
+          const max = totalPages(key)
+          if (action === 'first') state.tables[key].page = 1
+          if (action === 'prev') state.tables[key].page = Math.max(1, pg - 1)
+          if (action === 'next') state.tables[key].page = Math.min(max, pg + 1)
+          if (action === 'last') state.tables[key].page = max
+          reloadTable(key)
+        })
+      })
+    }
+
+    const reloadTable = (tableKey) => {
+      const map = {
+        tiktokProducts: loadTiktokProducts,
+        affiliate: loadAffiliateReport,
+        shopeeDaily: loadShopeeDailyTable,
+        shopeeProducts: loadShopeeProducts,
+        batches: loadBatches,
+        modalVideos: () => openCreatorDetail(state.tables.modalVideos.username, true),
+      }
+      map[tableKey]?.()
+    }
+
+    // --- Platform tabs ---
+    document.querySelectorAll('.platform-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        state.platform = tab.dataset.platform
+        document.querySelectorAll('.platform-tab').forEach(t => {
+          const on = t === tab
+          t.classList.toggle('active', on)
+          t.setAttribute('aria-selected', on ? 'true' : 'false')
+        })
+        document.querySelectorAll('.platform-panel').forEach(p => {
+          p.classList.toggle('active', p.id === `panel-${state.platform}`)
+        })
+      })
+    })
+
+    // --- KPI theo tab ---
+    const loadSummary = async () => {
+      const res = await fetch(`${API}/api/summary`)
       const d = await res.json()
+      document.getElementById('tiktok-kpi').innerHTML = `
+        <div class="kpi-card"><div class="kpi-label">GMV</div><div class="kpi-value">${formatVND(d.tiktok.gmv)}</div><div class="kpi-sub">${formatNum(d.tiktok.orders)} đơn</div></div>
+        <div class="kpi-card"><div class="kpi-label">ROI Quảng cáo</div><div class="kpi-value">${d.tiktok.ad_roi}x</div><div class="kpi-sub">${formatVND(d.tiktok.ad_revenue)} / ${formatVND(d.tiktok.ad_cost)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Affiliate Creators</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_creators)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Affiliate Videos</div><div class="kpi-value">${formatNum(d.tiktok.affiliate_videos)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Tỉ giá USD/VND</div><div class="kpi-value">${d.exchange_rate ? formatNum(d.exchange_rate.rate) : '—'}</div><div class="kpi-sub">${d.exchange_rate ? d.exchange_rate.source : ''}</div></div>
+      `
+      document.getElementById('shopee-kpi').innerHTML = `
+        <div class="kpi-card"><div class="kpi-label">Doanh số</div><div class="kpi-value">${formatVND(d.shopee.sales)}</div><div class="kpi-sub">${formatNum(d.shopee.orders)} đơn</div></div>
+        <div class="kpi-card"><div class="kpi-label">Lượt truy cập</div><div class="kpi-value">${formatNum(d.shopee.visits)}</div></div>
+      `
+    }
+
+    const loadTiktokProducts = async () => {
+      const key = 'tiktokProducts'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/report/top-products?limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const d = await res.json()
+      t.total = d.total || 0
+      renderToolbar('tiktok-products-toolbar', key)
+      const el = document.getElementById('tiktok-products')
+      if (!d.products.length) {
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu đơn hàng TikTok</div>'
+      } else {
+        const start = offsetOf(key)
+        el.innerHTML = `<table><thead><tr><th>#</th><th>SKU</th><th>Sản phẩm</th><th>Doanh số</th><th>SL</th></tr></thead><tbody>
+          ${d.products.map((p, i) => `<tr>
+            <td class="num">${start + i + 1}</td>
+            <td>${p.seller_sku || '—'}</td>
+            <td>${p.product_name || '—'}</td>
+            <td class="num">${formatVND(p.total_sales)}</td>
+            <td class="num">${formatNum(p.quantity)}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      }
+      renderPager('tiktok-products-pager', key)
+    }
+
+    const loadAffiliateReport = async () => {
+      const key = 'affiliate'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/report/affiliate?sort=${state.affiliateSort}&limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const d = await res.json()
+      t.total = d.total || 0
       const sumEl = document.getElementById('affiliate-summary')
       const el = document.getElementById('affiliate-report')
 
-      if (!d.creators.length) {
+      if (!d.total) {
         sumEl.innerHTML = ''
-        el.innerHTML = '<div class="empty">Chưa có dữ liệu affiliate — upload Creator_List và Creator_Video_List</div>'
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu affiliate</div>'
+        renderToolbar('affiliate-toolbar', key)
+        renderPager('affiliate-pager', key)
         return
       }
 
-      sumEl.innerHTML = `
-        Tổng creator: <span>${formatNum(d.summary.total_creators)}</span> ·
-        GMV: <span>${formatVND(d.summary.total_gmv)}</span> ·
-        Lượt xem: <span>${formatNum(d.summary.total_views)}</span> ·
-        Chi phí QC TB: <span>${d.summary.avg_ad_cost != null ? formatVND(d.summary.avg_ad_cost) : '—'}</span>
-      `
-
+      sumEl.innerHTML = `Tổng creator: <span>${formatNum(d.summary.total_creators)}</span> · GMV: <span>${formatVND(d.summary.total_gmv)}</span> · Lượt xem: <span>${formatNum(d.summary.total_views)}</span>`
+      renderToolbar('affiliate-toolbar', key)
+      const start = offsetOf(key)
       el.innerHTML = `<table><thead><tr>
-        <th>#</th><th>Creator</th><th>GMV</th><th>Lượt xem</th><th>ROI</th>
-        <th>Chi phí QC TB</th><th>Đơn</th><th>Video</th><th></th>
+        <th>#</th><th>Creator</th><th>GMV</th><th>Lượt xem</th><th>ROI</th><th>QC TB</th><th>Đơn</th><th>Video</th><th></th>
       </tr></thead><tbody>
         ${d.creators.map((c, i) => `<tr class="clickable" data-creator="${encodeURIComponent(c.creator_username)}">
-          <td class="num">${i + 1}</td>
+          <td class="num">${start + i + 1}</td>
           <td>${c.creator_username || '—'}</td>
           <td class="num">${formatVND(c.gmv)}</td>
           <td class="num">${formatNum(c.views)}</td>
@@ -498,18 +636,101 @@
           openCreatorDetail(decodeURIComponent(btn.dataset.creator))
         })
       })
+      renderPager('affiliate-pager', key)
     }
 
     document.getElementById('affiliate-tabs').addEventListener('click', (e) => {
       const btn = e.target.closest('.tab-btn')
       if (!btn) return
-      affiliateSort = btn.dataset.sort
-      document.querySelectorAll('#affiliate-tabs .tab-btn').forEach(b => {
-        b.classList.toggle('active', b === btn)
-        b.setAttribute('aria-selected', b === btn ? 'true' : 'false')
-      })
+      state.affiliateSort = btn.dataset.sort
+      state.tables.affiliate.page = 1
+      document.querySelectorAll('#affiliate-tabs .tab-btn').forEach(b => b.classList.toggle('active', b === btn))
       loadAffiliateReport()
     })
+
+    const drawLineChart = (points) => {
+      const wrap = document.getElementById('shopee-chart')
+      if (!points.length) { wrap.innerHTML = '<div class="empty">Chưa có dữ liệu Shopee</div>'; return }
+      const W = 800, H = 220, pad = { t: 20, r: 20, b: 40, l: 70 }
+      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b
+      const maxY = Math.max(...points.map(p => p.sales), 1)
+      const xStep = iw / Math.max(points.length - 1, 1)
+      const toX = (i) => pad.l + i * xStep
+      const toY = (v) => pad.t + ih - (v / maxY) * ih
+      const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.sales).toFixed(1)}`).join(' ')
+      const areaD = pathD + ` L${toX(points.length - 1).toFixed(1)},${(pad.t + ih).toFixed(1)} L${pad.l},${(pad.t + ih).toFixed(1)} Z`
+      let yLabels = ''
+      for (let i = 0; i <= 4; i++) {
+        const v = maxY * i / 4
+        const y = toY(v)
+        yLabels += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#1e3320"/>`
+        yLabels += `<text x="${pad.l - 8}" y="${y + 4}" fill="#7a9a7e" font-size="10" text-anchor="end" font-family="monospace">${formatVND(v)}</text>`
+      }
+      const xLabels = points.map((p, i) => {
+        if (points.length > 15 && i % 2 !== 0) return ''
+        return `<text x="${toX(i)}" y="${H - 8}" fill="#7a9a7e" font-size="9" text-anchor="middle" font-family="monospace">${p.date ? p.date.slice(5) : ''}</text>`
+      }).join('')
+      const dots = points.map((p, i) => `<circle cx="${toX(i)}" cy="${toY(p.sales)}" r="3" fill="#3ddc84"/>`).join('')
+      wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${yLabels}<path d="${areaD}" fill="#3ddc8420"/><path d="${pathD}" fill="none" stroke="#3ddc84" stroke-width="2"/>${dots}${xLabels}</svg>`
+    }
+
+    const loadShopeeChart = async () => {
+      const res = await fetch(`${API}/api/report/shopee-daily?limit=500&offset=0`)
+      const d = await res.json()
+      drawLineChart(d.daily || [])
+    }
+
+    const loadShopeeDailyTable = async () => {
+      const key = 'shopeeDaily'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/report/shopee-daily?limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const d = await res.json()
+      t.total = d.total || 0
+      renderToolbar('shopee-daily-toolbar', key)
+      const el = document.getElementById('shopee-daily-table')
+      if (!d.daily.length) {
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu Shopee</div>'
+      } else {
+        const start = offsetOf(key)
+        el.innerHTML = `<table><thead><tr><th>#</th><th>Ngày</th><th>Doanh số</th><th>Đơn</th><th>Truy cập</th></tr></thead><tbody>
+          ${d.daily.map((r, i) => `<tr>
+            <td class="num">${start + i + 1}</td>
+            <td>${r.date || '—'}</td>
+            <td class="num">${formatVND(r.sales)}</td>
+            <td class="num">${formatNum(r.orders)}</td>
+            <td class="num">${formatNum(r.visits)}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      }
+      renderPager('shopee-daily-pager', key)
+    }
+
+    const loadShopeeProducts = async () => {
+      const key = 'shopeeProducts'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/report/shopee-products?limit=${t.pageSize}&offset=${offsetOf(key)}`)
+      const d = await res.json()
+      t.total = d.total || 0
+      renderToolbar('shopee-products-toolbar', key)
+      const el = document.getElementById('shopee-products')
+      if (!d.products.length) {
+        el.innerHTML = '<div class="empty">Chưa có dữ liệu sản phẩm Shopee</div>'
+      } else {
+        const start = offsetOf(key)
+        el.innerHTML = `<table><thead><tr><th>#</th><th>Mã SP</th><th>Tên</th><th>Doanh số</th><th>Đơn</th><th>Hiển thị</th><th>Nhấp</th></tr></thead><tbody>
+          ${d.products.map((p, i) => `<tr>
+            <td class="num">${start + i + 1}</td>
+            <td>${p.product_id || '—'}</td>
+            <td>${p.product_name || '—'}</td>
+            <td class="num">${formatVND(p.sales)}</td>
+            <td class="num">${formatNum(p.orders)}</td>
+            <td class="num">${formatNum(p.impressions)}</td>
+            <td class="num">${formatNum(p.clicks)}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      }
+      renderPager('shopee-products-pager', key)
+    }
 
     const creatorModal = document.getElementById('creator-modal')
     const modalBody = document.getElementById('modal-body')
@@ -524,36 +745,49 @@
     creatorModal.addEventListener('click', (e) => { if (e.target === creatorModal) closeModal() })
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal() })
 
-    const openCreatorDetail = async (username) => {
-      creatorModal.classList.add('open')
-      modalTitle.textContent = `@${username}`
+    const openCreatorDetail = async (username, pagerOnly = false) => {
+      if (!pagerOnly) {
+        creatorModal.classList.add('open')
+        modalTitle.textContent = `@${username}`
+        state.tables.modalVideos.username = username
+        state.tables.modalVideos.page = 1
+      }
       modalBody.innerHTML = '<div class="empty">Đang tải video...</div>'
-
-      const res = await fetch(`${API}/api/report/affiliate/${encodeURIComponent(username)}/videos?sort=gmv&limit=50`)
+      const key = 'modalVideos'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/report/affiliate/${encodeURIComponent(username)}/videos?sort=gmv&limit=${t.pageSize}&offset=${offsetOf(key)}`)
       if (!res.ok) {
         modalBody.innerHTML = '<div class="empty">Không tìm thấy dữ liệu video</div>'
         return
       }
       const d = await res.json()
+      t.total = d.total || 0
       const s = d.summary
+      const start = offsetOf(key)
+      const pages = totalPages(key)
 
       modalBody.innerHTML = `
         <div class="modal-kpi">
           <div><label>GMV</label><strong>${formatVND(s.gmv)}</strong></div>
           <div><label>Lượt xem</label><strong>${formatNum(s.views)}</strong></div>
           <div><label>ROI</label><strong>${formatRoi(s.roi)}</strong></div>
-          <div><label>Chi phí QC</label><strong>${s.ad_cost_total ? formatVND(s.ad_cost_total) : '—'}</strong></div>
-          <div><label>QC TB/video</label><strong>${s.avg_ad_cost != null ? formatVND(s.avg_ad_cost) : '—'}</strong></div>
-          <div><label>Đơn hàng</label><strong>${formatNum(s.orders)}</strong></div>
+          <div><label>Video</label><strong>${formatNum(s.video_count)}</strong></div>
+          <div><label>Đơn</label><strong>${formatNum(s.orders)}</strong></div>
           <div><label>Hoa hồng</label><strong>${formatVND(s.commission)}</strong></div>
-          <div><label>Followers</label><strong>${formatNum(s.followers)}</strong></div>
         </div>
-        ${s.ad_account ? `<p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">Tài khoản QC khớp: ${s.ad_account}</p>` : ''}
-        <h2 style="margin-bottom:0.5rem">Video affiliate (${d.videos.length})</h2>
+        <div class="table-toolbar" id="modal-video-toolbar">
+          <label>Hiển thị
+            <select id="modal-page-size" aria-label="Số video mỗi trang">
+              ${PAGE_SIZES.map(n => `<option value="${n}" ${t.pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+            </select> dòng / trang
+          </label>
+          <span>Tổng video: <strong style="color:var(--accent);font-family:var(--mono)">${formatNum(t.total)}</strong></span>
+        </div>
         ${d.videos.length ? `<table><thead><tr>
-          <th>Tên video</th><th>Ngày</th><th>GMV</th><th>View</th><th>Đơn</th><th>ROI</th><th>CTR</th><th>GPM</th>
+          <th>#</th><th>Tên video</th><th>Ngày</th><th>GMV</th><th>View</th><th>Đơn</th><th>ROI</th><th>CTR</th>
         </tr></thead><tbody>
-          ${d.videos.map(v => `<tr>
+          ${d.videos.map((v, i) => `<tr>
+            <td class="num">${start + i + 1}</td>
             <td class="video-title" title="${(v.video_name || '').replace(/"/g, '&quot;')}">${v.video_name || '—'}</td>
             <td>${v.posted_date || '—'}</td>
             <td class="num">${formatVND(v.gmv)}</td>
@@ -561,13 +795,35 @@
             <td class="num">${formatNum(v.orders)}</td>
             <td class="num">${formatRoi(v.roi)}</td>
             <td class="num">${v.ctr != null ? v.ctr + '%' : '—'}</td>
-            <td class="num">${formatNum(v.gpm)}</td>
           </tr>`).join('')}
-        </tbody></table>` : '<div class="empty">Creator chưa có dữ liệu video chi tiết</div>'}
-      `
+        </tbody></table>` : '<div class="empty">Không có video</div>'}
+        <div class="pagination" id="modal-pager">
+          <button type="button" id="mv-first" ${t.page <= 1 ? 'disabled' : ''}>«</button>
+          <button type="button" id="mv-prev" ${t.page <= 1 ? 'disabled' : ''}>‹</button>
+          <span class="page-info">${t.page} / ${pages}</span>
+          <button type="button" id="mv-next" ${t.page >= pages ? 'disabled' : ''}>›</button>
+          <button type="button" id="mv-last" ${t.page >= pages ? 'disabled' : ''}>»</button>
+        </div>`
+
+      document.getElementById('modal-page-size')?.addEventListener('change', (e) => {
+        t.pageSize = parseInt(e.target.value, 10)
+        t.page = 1
+        openCreatorDetail(username, true)
+      })
+      const nav = (action) => {
+        const max = totalPages(key)
+        if (action === 'first') t.page = 1
+        if (action === 'prev') t.page = Math.max(1, t.page - 1)
+        if (action === 'next') t.page = Math.min(max, t.page + 1)
+        if (action === 'last') t.page = max
+        openCreatorDetail(username, true)
+      }
+      document.getElementById('mv-first')?.addEventListener('click', () => nav('first'))
+      document.getElementById('mv-prev')?.addEventListener('click', () => nav('prev'))
+      document.getElementById('mv-next')?.addEventListener('click', () => nav('next'))
+      document.getElementById('mv-last')?.addEventListener('click', () => nav('last'))
     }
 
-    // --- Batch history ---
     const handleDeleteBatch = async (id) => {
       if (!confirm(`Xoá batch #${id} và toàn bộ dữ liệu liên quan?`)) return
       await fetch(`${API}/api/batches/${id}`, { method: 'DELETE' })
@@ -575,29 +831,38 @@
     }
 
     const loadBatches = async () => {
-      const res = await fetch(`${API}/api/batches`)
+      const key = 'batches'
+      const t = state.tables[key]
+      const res = await fetch(`${API}/api/batches?limit=${t.pageSize}&offset=${offsetOf(key)}`)
       const d = await res.json()
+      t.total = d.total || 0
+      renderToolbar('batches-toolbar', key)
       const el = document.getElementById('batch-history')
-      if (!d.batches.length) { el.innerHTML = '<div class="empty">Chưa có upload nào</div>'; return }
-      el.innerHTML = `<table><thead><tr><th>ID</th><th>File</th><th>Loại</th><th>Dòng</th><th>Trạng thái</th><th>Thời gian</th><th></th></tr></thead><tbody>
-        ${d.batches.map(b => `<tr>
-          <td class="num">#${b.id}</td>
-          <td>${b.filename}</td>
-          <td>${b.source_type}</td>
-          <td class="num">${b.row_count}</td>
-          <td><span class="status-badge ${b.status}">${b.status}</span></td>
-          <td>${b.uploaded_at ? b.uploaded_at.slice(0, 16).replace('T', ' ') : '—'}</td>
-          <td><button class="btn-delete" onclick="handleDeleteBatch(${b.id})" aria-label="Xoá batch ${b.id}">Xoá</button></td>
-        </tr>`).join('')}
-      </tbody></table>`
+      if (!d.batches.length) {
+        el.innerHTML = '<div class="empty">Chưa có upload nào</div>'
+      } else {
+        el.innerHTML = `<table><thead><tr><th>ID</th><th>File</th><th>Loại</th><th>Dòng</th><th>Trạng thái</th><th>Thời gian</th><th></th></tr></thead><tbody>
+          ${d.batches.map(b => `<tr>
+            <td class="num">#${b.id}</td>
+            <td>${b.filename}</td>
+            <td>${b.source_type}</td>
+            <td class="num">${b.row_count}</td>
+            <td><span class="status-badge ${b.status}">${b.status}</span></td>
+            <td>${b.uploaded_at ? b.uploaded_at.slice(0, 16).replace('T', ' ') : '—'}</td>
+            <td><button class="btn-delete" onclick="handleDeleteBatch(${b.id})">Xoá</button></td>
+          </tr>`).join('')}
+        </tbody></table>`
+      }
+      renderPager('batches-pager', key)
     }
 
     const refreshAll = () => {
       loadSummary()
-      loadTopProducts()
-      loadTopCreators()
-      loadShopeeDaily()
+      loadTiktokProducts()
       loadAffiliateReport()
+      loadShopeeChart()
+      loadShopeeDailyTable()
+      loadShopeeProducts()
       loadBatches()
     }
 

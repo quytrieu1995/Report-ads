@@ -79,7 +79,12 @@ def _assign_ad_cost(creator_key: str, ad_map: dict[str, dict[str, float]]) -> di
     return best
 
 
-def get_affiliate_report(db: Session, sort: str = "gmv", limit: int = 20) -> dict[str, Any]:
+def get_affiliate_report(
+    db: Session,
+    sort: str = "gmv",
+    limit: int = 20,
+    offset: int = 0,
+) -> dict[str, Any]:
     """
     Báo cáo affiliate theo creator.
     sort: gmv | views | roi | avg_ad_cost
@@ -194,7 +199,8 @@ def get_affiliate_report(db: Session, sort: str = "gmv", limit: int = 20) -> dic
     }.get(sort, lambda x: x["gmv"])
 
     creators.sort(key=sort_key, reverse=True)
-    creators = creators[:limit]
+    total = len(creators)
+    creators = creators[offset : offset + limit]
 
     total_ad = sum(c["ad_cost_total"] for c in creators)
     ad_with_cost = [c for c in creators if c["avg_ad_cost"]]
@@ -202,6 +208,9 @@ def get_affiliate_report(db: Session, sort: str = "gmv", limit: int = 20) -> dic
 
     return {
         "sort": sort,
+        "offset": offset,
+        "limit": limit,
+        "total": total,
         "creators": creators,
         "summary": {
             "total_creators": len(merged),
@@ -218,6 +227,7 @@ def get_creator_videos(
     creator_username: str,
     sort: str = "gmv",
     limit: int = 50,
+    offset: int = 0,
 ) -> dict[str, Any]:
     """Chi tiết video affiliate của một creator."""
     rows = (
@@ -260,7 +270,9 @@ def get_creator_videos(
     }.get(sort, lambda x: x["gmv"])
 
     videos.sort(key=sort_key, reverse=True)
-    videos = videos[:limit]
+    total = len(videos)
+    all_videos = videos
+    videos = videos[offset : offset + limit]
 
     # Creator summary từ creator list
     creator_row = (
@@ -273,22 +285,25 @@ def get_creator_videos(
     ad = _assign_ad_cost(_normalize_key(creator_username), ad_map)
     ad_cost = ad.get("ad_cost", 0.0)
 
-    total_gmv = sum(v["gmv"] for v in videos) or _safe_float(creator_row.gmv if creator_row else 0)
-    total_views = sum(v["views"] for v in videos) or _safe_float(
+    total_gmv = sum(v["gmv"] for v in all_videos) or _safe_float(creator_row.gmv if creator_row else 0)
+    total_views = sum(v["views"] for v in all_videos) or _safe_float(
         creator_row.product_impressions if creator_row else 0
     )
-    total_commission = sum(v["commission"] for v in videos) or _safe_float(
+    total_commission = sum(v["commission"] for v in all_videos) or _safe_float(
         creator_row.estimated_commission if creator_row else 0
     )
 
     return {
         "creator_username": creator_username,
+        "offset": offset,
+        "limit": limit,
+        "total": total,
         "summary": {
             "gmv": total_gmv,
             "views": total_views,
-            "orders": sum(v["orders"] for v in videos) or _safe_float(creator_row.orders if creator_row else 0),
+            "orders": sum(v["orders"] for v in all_videos) or _safe_float(creator_row.orders if creator_row else 0),
             "commission": total_commission,
-            "video_count": len(videos),
+            "video_count": total,
             "followers": _safe_float(creator_row.followers if creator_row else 0),
             "ad_cost_total": ad_cost,
             "ad_account": ad.get("account") or None,

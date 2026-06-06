@@ -61,10 +61,26 @@ async def upload_files(files: list[UploadFile] = File(...), db: Session = Depend
 
 
 @app.get("/api/batches")
-def list_batches(db: Session = Depends(get_db)):
+def list_batches(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
     """Danh sách lịch sử upload."""
-    batches = db.query(models.UploadBatch).order_by(models.UploadBatch.uploaded_at.desc()).all()
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    total = db.query(func.count(models.UploadBatch.id)).scalar() or 0
+    batches = (
+        db.query(models.UploadBatch)
+        .order_by(models.UploadBatch.uploaded_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return {
+        "total": int(total),
+        "offset": offset,
+        "limit": limit,
         "batches": [
             {
                 "id": b.id,
@@ -157,9 +173,15 @@ def exchange_rate():
 
 
 @app.get("/api/report/top-products")
-def top_products(limit: int = 10, db: Session = Depends(get_db)):
+def top_products(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
     """Top sản phẩm TikTok — loại đơn đã hủy."""
-    rows = (
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    base = (
         db.query(
             models.TiktokOrder.seller_sku,
             models.TiktokOrder.product_name,
@@ -168,11 +190,19 @@ def top_products(limit: int = 10, db: Session = Depends(get_db)):
         )
         .filter(models.TiktokOrder.order_status != "Đã hủy")
         .group_by(models.TiktokOrder.seller_sku, models.TiktokOrder.product_name)
-        .order_by(func.sum(models.TiktokOrder.sku_subtotal_after_discount).desc())
+    )
+    subq = base.subquery()
+    total = db.query(func.count()).select_from(subq).scalar() or 0
+    rows = (
+        base.order_by(func.sum(models.TiktokOrder.sku_subtotal_after_discount).desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )
     return {
+        "total": int(total),
+        "offset": offset,
+        "limit": limit,
         "products": [
             {
                 "seller_sku": r.seller_sku,
@@ -181,7 +211,53 @@ def top_products(limit: int = 10, db: Session = Depends(get_db)):
                 "quantity": float(r.qty or 0),
             }
             for r in rows
-        ]
+        ],
+    }
+
+
+@app.get("/api/report/shopee-products")
+def shopee_products(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Top sản phẩm Shopee theo doanh số."""
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    base = (
+        db.query(
+            models.ShopeeProductStat.product_id,
+            models.ShopeeProductStat.product_name,
+            func.sum(models.ShopeeProductStat.sales).label("sales"),
+            func.sum(models.ShopeeProductStat.total_orders).label("orders"),
+            func.sum(models.ShopeeProductStat.impressions).label("impressions"),
+            func.sum(models.ShopeeProductStat.clicks).label("clicks"),
+        )
+        .group_by(models.ShopeeProductStat.product_id, models.ShopeeProductStat.product_name)
+    )
+    subq = base.subquery()
+    total = db.query(func.count()).select_from(subq).scalar() or 0
+    rows = (
+        base.order_by(func.sum(models.ShopeeProductStat.sales).desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return {
+        "total": int(total),
+        "offset": offset,
+        "limit": limit,
+        "products": [
+            {
+                "product_id": r.product_id,
+                "product_name": r.product_name,
+                "sales": float(r.sales or 0),
+                "orders": float(r.orders or 0),
+                "impressions": float(r.impressions or 0),
+                "clicks": float(r.clicks or 0),
+            }
+            for r in rows
+        ],
     }
 
 
@@ -212,9 +288,16 @@ def top_creators(limit: int = 10, db: Session = Depends(get_db)):
 
 
 @app.get("/api/report/shopee-daily")
-def shopee_daily(order_type: str = "placed", db: Session = Depends(get_db)):
+def shopee_daily(
+    order_type: str = "placed",
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
     """Doanh số Shopee theo ngày."""
-    rows = (
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    base = (
         db.query(
             models.ShopeeShopDaily.stat_date,
             func.sum(models.ShopeeShopDaily.total_sales).label("sales"),
@@ -223,10 +306,14 @@ def shopee_daily(order_type: str = "placed", db: Session = Depends(get_db)):
         )
         .filter(models.ShopeeShopDaily.order_type == order_type)
         .group_by(models.ShopeeShopDaily.stat_date)
-        .order_by(models.ShopeeShopDaily.stat_date)
-        .all()
     )
+    subq = base.subquery()
+    total = db.query(func.count()).select_from(subq).scalar() or 0
+    rows = base.order_by(models.ShopeeShopDaily.stat_date).offset(offset).limit(limit).all()
     return {
+        "total": int(total),
+        "offset": offset,
+        "limit": limit,
         "daily": [
             {
                 "date": r.stat_date.isoformat() if r.stat_date else None,
@@ -235,7 +322,7 @@ def shopee_daily(order_type: str = "placed", db: Session = Depends(get_db)):
                 "visits": float(r.visits or 0),
             }
             for r in rows
-        ]
+        ],
     }
 
 
@@ -243,6 +330,7 @@ def shopee_daily(order_type: str = "placed", db: Session = Depends(get_db)):
 def affiliate_report(
     sort: str = "gmv",
     limit: int = 20,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
     """
@@ -252,21 +340,30 @@ def affiliate_report(
     allowed = {"gmv", "views", "roi", "avg_ad_cost", "orders"}
     if sort not in allowed:
         raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
-    return get_affiliate_report(db, sort=sort, limit=min(limit, 100))
+    return get_affiliate_report(
+        db, sort=sort, limit=min(max(limit, 1), 100), offset=max(offset, 0)
+    )
 
 
 @app.get("/api/report/affiliate/{creator_username}/videos")
 def affiliate_creator_videos(
     creator_username: str,
     sort: str = "gmv",
-    limit: int = 50,
+    limit: int = 20,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
     """Chi tiết video affiliate của một creator."""
     allowed = {"gmv", "views", "roi", "orders"}
     if sort not in allowed:
         raise HTTPException(400, f"sort phải là một trong: {', '.join(sorted(allowed))}")
-    result = get_creator_videos(db, creator_username, sort=sort, limit=min(limit, 200))
+    result = get_creator_videos(
+        db,
+        creator_username,
+        sort=sort,
+        limit=min(max(limit, 1), 100),
+        offset=max(offset, 0),
+    )
     if not result["videos"] and not result["summary"]["gmv"]:
         raise HTTPException(404, f"Không tìm thấy creator: {creator_username}")
     return result
